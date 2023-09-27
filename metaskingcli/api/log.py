@@ -1,0 +1,100 @@
+import datetime
+import requests
+
+from .base import handle_response
+
+
+API_VERSION = "v1"
+
+
+def list_all(
+    server: str,
+    offset: int = 0,
+    limit: int = 100,
+    category_id: int | None = None,
+    task_id: int | None = None,
+    stopped: bool | None = None,
+) -> list[dict]:
+    url = f"{server}/api/{API_VERSION}/log/list"
+    params = {
+        "offset": offset,
+        "limit": limit,
+    }
+    if category_id is not None:
+        params["category_id"] = category_id
+    if task_id is not None:
+        params["task_id"] = task_id
+    if stopped is not None:
+        params["stopped"] = stopped
+    return handle_response(requests.get(url, params=params))
+
+
+def start(server: str) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/start"
+    return handle_response(requests.post(url))
+
+
+def stop_all(server: str) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/all/stop"
+    return handle_response(requests.post(url))
+
+
+def stop(server: str, log_id: int) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/{log_id}/stop"
+    return handle_response(requests.post(url))
+
+
+def pause_active(server: str) -> dict:
+    return pause(server, None)
+
+
+def pause(server: str, log_id: int | None) -> dict:
+    if log_id is not None:
+        log_name = f"{log_id}"
+    else:
+        log_name = "active"
+    url = f"{server}/api/{API_VERSION}/log/{log_name}/pause"
+    return handle_response(requests.post(url))
+
+
+def resume(server: str, log_id: int) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/{log_id}/resume"
+    return handle_response(requests.post(url))
+
+
+def get_active(server: str) -> dict:
+    return read(server, None)
+
+
+def read(server: str, log_id: int | None) -> dict:
+    if log_id is not None:
+        log_name = f"{log_id}"
+    else:
+        log_name = "active"
+    url = f"{server}/api/{API_VERSION}/log/{log_name}"
+    return handle_response(requests.get(url))
+
+
+def update(
+    server: str,
+    log_id: int,
+    create_category: bool = False,
+    create_task: bool = False,
+    **kwargs,
+) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/{log_id}"
+    params = {
+        "create-category": create_category,
+        "create-task": create_task,
+    }
+    return handle_response(requests.put(url, params=params, json=kwargs))
+
+
+def delete(server: str, log_id: int) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/{log_id}"
+    return handle_response(requests.delete(url))
+
+
+def split(server: str, log_id: int, at: datetime.datetime) -> list[dict]:
+    url = f"{server}/api/{API_VERSION}/log/{log_id}/split"
+    return handle_response(requests.post(url, json={"at": at.isoformat()}))
