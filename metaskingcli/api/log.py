@@ -14,18 +14,24 @@ def list_all(
     category_id: int | None = None,
     task_id: int | None = None,
     stopped: bool | None = None,
+    since: datetime.datetime | None = None,
+    until: datetime.datetime | None = None,
 ) -> list[dict]:
     url = f"{server}/api/{API_VERSION}/log/list"
-    params = {
-        "offset": offset,
-        "limit": limit,
+    params: dict[str, str] = {
+        "offset": str(offset),
+        "limit": str(limit),
     }
     if category_id is not None:
-        params["category_id"] = category_id
+        params["category_id"] = str(category_id)
     if task_id is not None:
-        params["task_id"] = task_id
+        params["task_id"] = str(task_id)
     if stopped is not None:
-        params["stopped"] = stopped
+        params["stopped"] = str(stopped)
+    if since is not None:
+        params["since"] = since.isoformat()
+    if until is not None:
+        params["until"] = until.isoformat()
     return handle_response(requests.get(url, params=params))
 
 
