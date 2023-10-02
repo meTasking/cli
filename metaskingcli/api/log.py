@@ -40,13 +40,22 @@ def start(server: str) -> dict:
     return handle_response(requests.post(url))
 
 
+def next(server: str) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/next"
+    return handle_response(requests.post(url))
+
+
 def stop_all(server: str) -> dict:
     url = f"{server}/api/{API_VERSION}/log/all/stop"
     return handle_response(requests.post(url))
 
 
-def stop(server: str, log_id: int) -> dict:
-    url = f"{server}/api/{API_VERSION}/log/{log_id}/stop"
+def stop(server: str, log_id: int | None) -> dict:
+    if log_id is not None:
+        log_name = f"{log_id}"
+    else:
+        log_name = "active"
+    url = f"{server}/api/{API_VERSION}/log/{log_name}/stop"
     return handle_response(requests.post(url))
 
 

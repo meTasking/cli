@@ -1,7 +1,10 @@
 import os
 import enum
 from typing import Optional
-from pydantic import BaseModel, Field
+from datetime import datetime
+
+from dateutil import parser
+from pydantic import BaseModel, Field, validator
 
 
 class OutputFormat(enum.Enum):
@@ -16,7 +19,15 @@ class HelpCmd(BaseModel):
 
 class StartCmd(BaseModel):
     _description = (
-        "Start a new log of a working session and start tracking time"
+        "Start a new log of a working session and start tracking time" +
+        ", any active log will be paused"
+    )
+
+
+class NextCmd(BaseModel):
+    _description = (
+        "Start a new log of a working session and start tracking time" +
+        ", any active log will be stopped"
     )
 
 
@@ -62,16 +73,43 @@ class ShowCmd(BaseModel):
     id: Optional[int] = Field(
         description="Id of log to show (default: active log)",
     )
+    format: OutputFormat = Field(
+        default=OutputFormat.simple,
+        description="Output format",
+    )
 
 
 class ListCmd(BaseModel):
     _description = "List all logs"
     # TODO: add filters
 
+    since: Optional[datetime] = Field(
+        default=None,
+        description="only show logs since this date",
+    )
+    until: Optional[datetime] = Field(
+        default=None,
+        description="only show logs until this date",
+    )
+
     format: OutputFormat = Field(
         default=OutputFormat.simple,
         description="Output format",
     )
+
+    @validator("since", "until", pre=True, always=True)
+    def parse_datetime(cls, value):
+        if value is None:
+            return None
+
+        if isinstance(value, datetime):
+            # If it's already a datetime object, return it as is
+            return value.astimezone()
+
+        try:
+            return parser.parse(value).astimezone()
+        except Exception as e:
+            raise ValueError(f"Failed to parse datetime: {e}")
 
 
 class DeleteCmd(BaseModel):
@@ -109,6 +147,9 @@ class CliArgs(BaseModel):
     )
     start: Optional[StartCmd] = Field(
         description=StartCmd._description,
+    )
+    next: Optional[NextCmd] = Field(
+        description=NextCmd._description,
     )
     pause: Optional[PauseCmd] = Field(
         description=PauseCmd._description,
