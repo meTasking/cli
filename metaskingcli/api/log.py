@@ -14,6 +14,7 @@ def list_all(
     category_id: int | None = None,
     task_id: int | None = None,
     stopped: bool | None = None,
+    order: str | None = None,
     since: datetime.datetime | None = None,
     until: datetime.datetime | None = None,
 ) -> list[dict]:
@@ -28,6 +29,8 @@ def list_all(
         params["task_id"] = str(task_id)
     if stopped is not None:
         params["stopped"] = str(stopped)
+    if order is not None:
+        params["order"] = order
     if since is not None:
         params["since"] = since.isoformat()
     if until is not None:

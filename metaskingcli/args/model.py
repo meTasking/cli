@@ -83,6 +83,12 @@ class ListCmd(BaseModel):
     _description = "List all logs"
     # TODO: add filters
 
+    order: Optional[str] = Field(
+        default=None,
+        description="Order of logs",
+        regex="^(asc|desc)$",
+    )
+
     since: Optional[datetime] = Field(
         default=None,
         description="only show logs since this date",
