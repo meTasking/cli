@@ -118,6 +118,34 @@ class ListCmd(BaseModel):
             raise ValueError(f"Failed to parse datetime: {e}")
 
 
+class ReportCmd(BaseModel):
+    _description = "List all logs"
+    # TODO: add filters
+
+    since: Optional[datetime] = Field(
+        default=None,
+        description="only show logs since this date",
+    )
+    until: Optional[datetime] = Field(
+        default=None,
+        description="only show logs until this date",
+    )
+
+    @validator("since", "until", pre=True, always=True)
+    def parse_datetime(cls, value):
+        if value is None:
+            return None
+
+        if isinstance(value, datetime):
+            # If it's already a datetime object, return it as is
+            return value.astimezone()
+
+        try:
+            return parser.parse(value).astimezone()
+        except Exception as e:
+            raise ValueError(f"Failed to parse datetime: {e}")
+
+
 class DeleteCmd(BaseModel):
     _description = "Delete log"
     id: Optional[int] = Field(
@@ -174,6 +202,9 @@ class CliArgs(BaseModel):
     )
     list: Optional[ListCmd] = Field(
         description=ListCmd._description,
+    )
+    report: Optional[ReportCmd] = Field(
+        description=ReportCmd._description,
     )
     delete: Optional[DeleteCmd] = Field(
         description=DeleteCmd._description,

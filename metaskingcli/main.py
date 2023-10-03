@@ -11,6 +11,7 @@ from .commands import (
     cmd_status,
     cmd_show,
     cmd_list,
+    cmd_report,
     cmd_delete,
     cmd_edit,
 )
@@ -61,6 +62,8 @@ def main():
         code = cmd_show(args)
     elif args.list:
         code = cmd_list(args)
+    elif args.report:
+        code = cmd_report(args)
     elif args.delete:
         code = cmd_delete(args)
     elif args.edit:

@@ -9,6 +9,7 @@ from .model import (
     StatusCmd,
     ShowCmd,
     ListCmd,
+    ReportCmd,
     DeleteCmd,
     EditCmd,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "StatusCmd",
     "ShowCmd",
     "ListCmd",
+    "ReportCmd",
     "DeleteCmd",
     "EditCmd",
     "parse_arguments",
