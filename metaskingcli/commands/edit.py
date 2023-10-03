@@ -25,7 +25,7 @@ def execute(args: CliArgs) -> int:
         log["task"] = log["task"]["name"]
 
     # Dump the log to yaml and allow the user to edit it
-    with tempfile.NamedTemporaryFile(mode="w+") as f:
+    with tempfile.NamedTemporaryFile(mode="w+", suffix='.yml') as f:
         yaml.dump(log, f)
         f.flush()
         edit_file(args.edit.editor, f.name)
