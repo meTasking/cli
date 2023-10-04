@@ -48,6 +48,24 @@ class NextCmd(BaseModel):
         ", any active log will be stopped"
     )
 
+    name: Optional[str] = Field(
+        default=None,
+        description="Name of log",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Description of log",
+    )
+
+    task: Optional[str] = Field(
+        default=None,
+        description="Name of task to assign the log to",
+    )
+    category: Optional[str] = Field(
+        default=None,
+        description="Name of category to assign the log to",
+    )
+
 
 class PauseCmd(BaseModel):
     _description = (
