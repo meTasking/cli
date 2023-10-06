@@ -22,6 +22,8 @@ def execute(args: CliArgs) -> int:
             break
         offset += len(logs)
 
+        total_duration = 0.0
+
         for log in logs:
             for record in log['records']:
                 if record['end'] is None:
@@ -33,7 +35,9 @@ def execute(args: CliArgs) -> int:
                 day_duration = 0.0
                 if start_date in dates:
                     day_duration = dates[start_date]
-                day_duration += (end - start).total_seconds() / 3600.0
+                record_duration = (end - start).total_seconds() / 3600.0
+                total_duration += record_duration
+                day_duration += record_duration
                 dates[start_date] = day_duration
 
         min_date = min(dates.keys())
@@ -45,5 +49,7 @@ def execute(args: CliArgs) -> int:
             else:
                 print(f"{cur_date.isoformat()}: 0.0")
             cur_date += timedelta(days=1)
+
+        print(f"Total: {total_duration}")
 
     return 0
