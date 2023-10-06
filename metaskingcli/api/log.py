@@ -43,9 +43,9 @@ def start(server: str, **kwargs) -> dict:
     return handle_response(requests.post(url, json=kwargs))
 
 
-def next(server: str) -> dict:
+def next(server: str, **kwargs) -> dict:
     url = f"{server}/api/{API_VERSION}/log/next"
-    return handle_response(requests.post(url))
+    return handle_response(requests.post(url, json=kwargs))
 
 
 def stop_all(server: str) -> dict:
