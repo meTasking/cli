@@ -1,7 +1,7 @@
 import os
 import enum
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from dateutil import parser
 from pydantic import BaseModel, Field, validator
@@ -41,6 +41,11 @@ class StartCmd(BaseModel):
         description="Name of category to assign the log to",
     )
 
+    adjust: Optional[timedelta] = Field(
+        default=None,
+        description="Adjust the start time of the log",
+    )
+
 
 class NextCmd(BaseModel):
     _description = (
@@ -64,6 +69,11 @@ class NextCmd(BaseModel):
     category: Optional[str] = Field(
         default=None,
         description="Name of category to assign the log to",
+    )
+
+    adjust: Optional[timedelta] = Field(
+        default=None,
+        description="Adjust the start time of the log",
     )
 
 

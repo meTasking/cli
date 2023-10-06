@@ -1,3 +1,5 @@
+from typing import Any
+
 from metaskingcli.args import CliArgs
 from metaskingcli.api.log import next
 
@@ -5,7 +7,7 @@ from metaskingcli.api.log import next
 def execute(args: CliArgs) -> int:
     assert args.next is not None
 
-    json_params = {}
+    json_params: dict[str, Any] = {}
     if args.next.name is not None:
         json_params['name'] = args.next.name
     if args.next.description is not None:
@@ -14,6 +16,8 @@ def execute(args: CliArgs) -> int:
         json_params['task'] = args.next.task
     if args.next.category is not None:
         json_params['category'] = args.next.category
+    if args.next.adjust is not None:
+        json_params['adjust_start'] = args.next.adjust.total_seconds()
 
     next(args.server, **json_params)
     return 0
