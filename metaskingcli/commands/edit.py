@@ -19,10 +19,15 @@ def execute(args: CliArgs) -> int:
     log = read(args.server, args.edit.id)
 
     # Preprocessing
-    if log["category"] is not None:
+    if log.get("category") is not None:
         log["category"] = log["category"]["name"]
-    if log["task"] is not None:
+    if log.get("task") is not None:
         log["task"] = log["task"]["name"]
+    if log.get("flags") is not None:
+        flags = []
+        for flag in log["flags"]:
+            flags.append(flag["name"])
+        log["flags"] = flags
 
     # Dump the log to yaml and allow the user to edit it
     with tempfile.NamedTemporaryFile(mode="w+", suffix='.yml') as f:
