@@ -1,3 +1,4 @@
+from typing import Any
 import datetime
 import requests
 
@@ -14,21 +15,24 @@ def list_all(
     category_id: int | None = None,
     task_id: int | None = None,
     stopped: bool | None = None,
+    flags: list[str] | None = None,
     order: str | None = None,
     since: datetime.datetime | None = None,
     until: datetime.datetime | None = None,
 ) -> list[dict]:
     url = f"{server}/api/{API_VERSION}/log/list"
-    params: dict[str, str] = {
+    params: dict[str, Any] = {
         "offset": str(offset),
         "limit": str(limit),
     }
     if category_id is not None:
-        params["category_id"] = str(category_id)
+        params["category_id"] = category_id
     if task_id is not None:
-        params["task_id"] = str(task_id)
+        params["task_id"] = task_id
     if stopped is not None:
-        params["stopped"] = str(stopped)
+        params["stopped"] = stopped
+    if flags is not None:
+        params["flags"] = flags
     if order is not None:
         params["order"] = order
     if since is not None:

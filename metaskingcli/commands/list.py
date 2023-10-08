@@ -13,6 +13,7 @@ def execute(args: CliArgs) -> int:
         logs = list_all(
             args.server,
             offset=offset,
+            flags=args.list.flags,
             order=args.list.order,
             since=args.list.since,
             until=args.list.until,

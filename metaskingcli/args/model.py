@@ -144,6 +144,11 @@ class ListCmd(BaseModel):
         description="only show logs until this date",
     )
 
+    flags: Optional[list[str]] = Field(
+        default=None,
+        description="only show logs with these flags",
+    )
+
     format: OutputFormat = Field(
         default=OutputFormat.simple,
         description="Output format",
@@ -165,16 +170,23 @@ class ListCmd(BaseModel):
 
 
 class ReportCmd(BaseModel):
-    _description = "List all logs"
+    _description = (
+        "List sum of time spend for each day + total for all days"
+    )
     # TODO: add filters
 
     since: Optional[datetime] = Field(
         default=None,
-        description="only show logs since this date",
+        description="only use logs since this date",
     )
     until: Optional[datetime] = Field(
         default=None,
-        description="only show logs until this date",
+        description="only use logs until this date",
+    )
+
+    flags: Optional[list[str]] = Field(
+        default=None,
+        description="only use logs with these flags",
     )
 
     @validator("since", "until", pre=True, always=True)
