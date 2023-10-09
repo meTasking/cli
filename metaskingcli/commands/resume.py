@@ -9,7 +9,7 @@ def execute(args: CliArgs) -> int:
 
     params: dict[str, Any] = {}
     if args.resume.adjust is not None:
-        params['adjust_time'] = args.resume.adjust.total_seconds()
+        params['adjust-time'] = args.resume.adjust.total_seconds()
 
     resume(
         args.server,

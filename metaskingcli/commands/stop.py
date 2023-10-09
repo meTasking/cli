@@ -9,7 +9,7 @@ def execute(args: CliArgs) -> int:
 
     params: dict[str, Any] = {}
     if args.stop.adjust is not None:
-        params['adjust_time'] = args.stop.adjust.total_seconds()
+        params['adjust-time'] = args.stop.adjust.total_seconds()
 
     if args.stop.all:
         stop_all(args.server, **params)

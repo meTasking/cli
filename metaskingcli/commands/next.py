@@ -19,7 +19,7 @@ def execute(args: CliArgs) -> int:
 
     params: dict[str, Any] = {}
     if args.next.adjust is not None:
-        params['adjust_time'] = args.next.adjust.total_seconds()
+        params['adjust-time'] = args.next.adjust.total_seconds()
 
     next(args.server, params, **json_params)
     return 0

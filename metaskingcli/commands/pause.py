@@ -9,7 +9,7 @@ def execute(args: CliArgs) -> int:
 
     params: dict[str, Any] = {}
     if args.pause.adjust is not None:
-        params['adjust_time'] = args.pause.adjust.total_seconds()
+        params['adjust-time'] = args.pause.adjust.total_seconds()
 
     pause(args.server, args.pause.id, **params)
     return 0
