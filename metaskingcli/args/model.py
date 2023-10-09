@@ -89,12 +89,22 @@ class PauseCmd(BaseModel):
         description="Id of Log to pause (default: active log)",
     )
 
+    adjust: Optional[timedelta] = Field(
+        default=None,
+        description="Adjust the end time of the record",
+    )
+
 
 class ResumeCmd(BaseModel):
     _description = "Resume tracking time of log"
     id: Optional[int] = Field(
         default=None,
         description="Id of Log to resume (default: last log)",
+    )
+
+    adjust: Optional[timedelta] = Field(
+        default=None,
+        description="Adjust the start time of the record",
     )
 
 
@@ -107,6 +117,11 @@ class StopCmd(BaseModel):
     all: bool = Field(
         default=False,
         description="Stop all logs",
+    )
+
+    adjust: Optional[timedelta] = Field(
+        default=None,
+        description="Adjust the end time of the log",
     )
 
 

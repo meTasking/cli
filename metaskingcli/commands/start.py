@@ -16,8 +16,10 @@ def execute(args: CliArgs) -> int:
         json_params['task'] = args.start.task
     if args.start.category is not None:
         json_params['category'] = args.start.category
-    if args.start.adjust is not None:
-        json_params['adjust_start'] = args.start.adjust.total_seconds()
 
-    start(args.server, **json_params)
+    params: dict[str, Any] = {}
+    if args.start.adjust is not None:
+        params['adjust_time'] = args.start.adjust.total_seconds()
+
+    start(args.server, params, **json_params)
     return 0

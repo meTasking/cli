@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 import datetime
 import requests
 
@@ -42,46 +42,54 @@ def list_all(
     return handle_response(requests.get(url, params=params))
 
 
-def start(server: str, **kwargs) -> dict:
+def start(
+    server: str,
+    params: Optional[dict[str, Any]] = None,
+    **kwargs
+) -> dict:
     url = f"{server}/api/{API_VERSION}/log/start"
-    return handle_response(requests.post(url, json=kwargs))
+    return handle_response(requests.post(url, params=params, json=kwargs))
 
 
-def next(server: str, **kwargs) -> dict:
+def next(
+    server: str,
+    params: Optional[dict[str, Any]] = None,
+    **kwargs
+) -> dict:
     url = f"{server}/api/{API_VERSION}/log/next"
-    return handle_response(requests.post(url, json=kwargs))
+    return handle_response(requests.post(url, params=params, json=kwargs))
 
 
-def stop_all(server: str) -> dict:
+def stop_all(server: str, **kwargs) -> dict:
     url = f"{server}/api/{API_VERSION}/log/all/stop"
-    return handle_response(requests.post(url))
+    return handle_response(requests.post(url, params=kwargs))
 
 
-def stop(server: str, log_id: int | None) -> dict:
+def stop(server: str, log_id: int | None, **kwargs) -> dict:
     if log_id is not None:
         log_name = f"{log_id}"
     else:
         log_name = "active"
     url = f"{server}/api/{API_VERSION}/log/{log_name}/stop"
-    return handle_response(requests.post(url))
+    return handle_response(requests.post(url, params=kwargs))
 
 
-def pause_active(server: str) -> dict:
-    return pause(server, None)
+def pause_active(server: str, **kwargs) -> dict:
+    return pause(server, None, **kwargs)
 
 
-def pause(server: str, log_id: int | None) -> dict:
+def pause(server: str, log_id: int | None, **kwargs) -> dict:
     if log_id is not None:
         log_name = f"{log_id}"
     else:
         log_name = "active"
     url = f"{server}/api/{API_VERSION}/log/{log_name}/pause"
-    return handle_response(requests.post(url))
+    return handle_response(requests.post(url, params=kwargs))
 
 
-def resume(server: str, log_id: int) -> dict:
+def resume(server: str, log_id: int, **kwargs) -> dict:
     url = f"{server}/api/{API_VERSION}/log/{log_id}/resume"
-    return handle_response(requests.post(url))
+    return handle_response(requests.post(url, params=kwargs))
 
 
 def get_active(server: str) -> dict:
