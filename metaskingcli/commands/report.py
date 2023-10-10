@@ -9,6 +9,8 @@ def execute(args: CliArgs) -> int:
 
     dates: dict[date, float] = {}
 
+    total_duration = 0.0
+
     offset = 0
     while True:
         logs = list_all(
@@ -22,8 +24,6 @@ def execute(args: CliArgs) -> int:
         if len(logs) == 0:
             break
         offset += len(logs)
-
-        total_duration = 0.0
 
         for log in logs:
             for record in log['records']:
@@ -41,16 +41,16 @@ def execute(args: CliArgs) -> int:
                 day_duration += record_duration
                 dates[start_date] = day_duration
 
-        min_date = min(dates.keys())
-        max_date = max(dates.keys())
-        cur_date = min_date
-        while cur_date <= max_date:
-            if cur_date in dates:
-                print(f"{cur_date.isoformat()}: {dates[cur_date]}")
-            else:
-                print(f"{cur_date.isoformat()}: 0.0")
-            cur_date += timedelta(days=1)
+    min_date = min(dates.keys())
+    max_date = max(dates.keys())
+    cur_date = min_date
+    while cur_date <= max_date:
+        if cur_date in dates:
+            print(f"{cur_date.isoformat()}: {dates[cur_date]}")
+        else:
+            print(f"{cur_date.isoformat()}: 0.0")
+        cur_date += timedelta(days=1)
 
-        print(f"Total: {total_duration}")
+    print(f"Total: {total_duration}")
 
     return 0
