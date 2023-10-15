@@ -1,6 +1,7 @@
 from typing import Any, Callable, Mapping, Iterable
 from datetime import datetime
 
+from textual import work
 from textual.app import App, ComposeResult
 from textual._system_commands import SystemCommands
 from textual.command import Hit, Hits, Provider
@@ -30,6 +31,7 @@ from metaskingcli.api.log import (
 class EditableStatic(Static, can_focus=True):
     """A widget that displays a static text and allows to edit it."""
 
+    # Without min-width and min-height the user can't click on the widget
     DEFAULT_CSS = """
     EditableStatic {
         min-width: 2;
@@ -40,13 +42,13 @@ class EditableStatic(Static, can_focus=True):
     text: reactive[str | None] = reactive(None)
     cursor:  reactive[int] = reactive(0)
     fallback_text: str
-    save_callback: Callable[[str | None], None] | None = None
+    save_callback: Callable[[str | None], Any] | None = None
 
     def __init__(
         self,
         text: str | None = None,
         fallback_text: str = "",
-        save_callback: Callable[[str | None], None] | None = None,
+        save_callback: Callable[[str | None], Any] | None = None,
         **kwargs
     ) -> None:
         self.fallback_text = fallback_text
@@ -298,6 +300,7 @@ class WorkLog(Static):
 
         super().__init__(**kwargs)
 
+    @work(thread=True)
     def save_category(self, category: str | None) -> None:
         update(
             self._logs_server,
@@ -306,6 +309,7 @@ class WorkLog(Static):
             category=category,
         )
 
+    @work(thread=True)
     def save_task(self, task: str | None) -> None:
         update(
             self._logs_server,
@@ -314,6 +318,7 @@ class WorkLog(Static):
             task=task,
         )
 
+    @work(thread=True)
     def save_name(self, name: str | None) -> None:
         update(
             self._logs_server,
@@ -321,6 +326,7 @@ class WorkLog(Static):
             name=name,
         )
 
+    @work(thread=True)
     def save_description(self, description: str | None) -> None:
         update(
             self._logs_server,
@@ -479,27 +485,18 @@ class LogList(ScrollableContainer):
         self.add_class("container-logs-wrapper-empty")
         self.load_more_logs()
 
-    def load_more_logs(self) -> None:
-        if self.logs_reached_end:
+    def _add_logs(
+        self,
+        offset: int,
+        reached_end: bool,
+        logs: list[dict[str, Any]]
+    ) -> None:
+        if offset != self.logs_offset:
+            # Race condition - ignore
             return
 
-        if self.logs_only_active:
-            logs = []
-            active_log = get_active(self.logs_server)
-            if active_log is not None:
-                logs.append(active_log)
-            self.logs_reached_end = True
-        else:
-            logs = list_all(
-                self.logs_server,
-                offset=self.logs_offset,
-                limit=20,
-                **self.logs_filters
-            )
-            if len(logs) < 20:
-                self.logs_reached_end = True
-
         self.logs_offset += len(logs)
+        self.logs_reached_end = reached_end
 
         widgets: Iterable[WorkLog] = map(
             lambda log: WorkLog(
@@ -524,6 +521,32 @@ class LogList(ScrollableContainer):
         if len(widgets_list) != 0:
             self.remove_class("container-logs-wrapper-empty")
 
+    @work(exclusive=True, thread=True)
+    def load_more_logs(self) -> None:
+        reached_end = self.logs_reached_end
+        offset = self.logs_offset
+
+        if reached_end:
+            return
+
+        if self.logs_only_active:
+            logs = []
+            active_log = get_active(self.logs_server)
+            if active_log is not None:
+                logs.append(active_log)
+            reached_end = True
+        else:
+            logs = list_all(
+                self.logs_server,
+                offset=self.logs_offset,
+                limit=20,
+                **self.logs_filters
+            )
+            if len(logs) < 20:
+                reached_end = True
+
+        self.call_after_refresh(self._add_logs, offset, reached_end, logs)
+
     def compose(self) -> ComposeResult:
         yield Static("No logs", classes="no-logs")
         yield Container(classes="container-logs")
@@ -542,8 +565,7 @@ class MeTaskingTuiCommands(Provider):
         app: "MeTaskingTui" = self.app  # type: ignore
         matcher = self.matcher(query)
 
-        for name, runnable, help_text, read_only in (
-
+        actions: Iterable[tuple[str, Callable[[], Any], str, bool]] = (
             (
                 "Refresh",
                 app.action_refresh,
@@ -604,7 +626,9 @@ class MeTaskingTuiCommands(Provider):
                 "Load more stopped logs",
                 True,
             ),
-        ):
+        )
+
+        for name, runnable, help_text, read_only in actions:
             if app._read_only_mode and not read_only:
                 continue
             match = matcher.match(name)
@@ -749,45 +773,52 @@ class MeTaskingTui(App):
         for log_list in self.query(LogList).results():
             log_list.reload_logs()
 
+    @work(thread=True)
     def action_delete(self) -> None:
         """An action to delete active log."""
         delete(self._server, -1)
-        self.action_refresh()
+        self.call_after_refresh(self.action_refresh)
 
     def action_edit(self) -> None:
         """An action to edit active log."""
         # TODO: Implement edit
         pass
 
+    @work(thread=True)
     def action_next(self) -> None:
         """An action to stop active log and start new one."""
         next(self._server)
-        self.action_refresh()
+        self.call_after_refresh(self.action_refresh)
 
+    @work(thread=True)
     def action_pause(self) -> None:
         """An action to pause active log."""
         pause_active(self._server)
-        self.action_refresh()
+        self.call_after_refresh(self.action_refresh)
 
+    @work(thread=True)
     def action_resume(self) -> None:
         """An action to resume active log."""
         resume(self._server, -1)
-        self.action_refresh()
+        self.call_after_refresh(self.action_refresh)
 
+    @work(thread=True)
     def action_start(self) -> None:
         """An action to start new log and pause active one."""
         start(self._server)
-        self.action_refresh()
+        self.call_after_refresh(self.action_refresh)
 
+    @work(thread=True)
     def action_stop(self) -> None:
         """An action to stop active log."""
         stop_active(self._server)
-        self.action_refresh()
+        self.call_after_refresh(self.action_refresh)
 
+    @work(thread=True)
     def action_stop_all(self) -> None:
         """An action to stop all logs."""
         stop_all(self._server)
-        self.action_refresh()
+        self.call_after_refresh(self.action_refresh)
 
     def action_more(self) -> None:
         """An action to load more stopped logs."""
