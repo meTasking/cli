@@ -4,8 +4,8 @@ from metaskingcli.api.log import get_active, list_all
 
 def execute(args: CliArgs) -> int:
     print("Active logs:")
-    try:
-        active = get_active(args.server)
+    active = get_active(args.server)
+    if active is not None:
         time_range = ""
         if len(active['records']) > 0:
             time_range = f" ({active['records'][0]['start']} " + \
@@ -14,7 +14,7 @@ def execute(args: CliArgs) -> int:
             f"{active['id']}{time_range}: " +
             f"{active['name']}: {active['description']}"
         )
-    except Exception:
+    else:
         print("- None")
 
     print("All non-stopped logs:")

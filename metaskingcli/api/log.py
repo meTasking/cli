@@ -65,6 +65,10 @@ def stop_all(server: str, **kwargs) -> dict:
     return handle_response(requests.post(url, params=kwargs))
 
 
+def stop_active(server: str, **kwargs) -> dict:
+    return stop(server, None, **kwargs)
+
+
 def stop(server: str, log_id: int | None, **kwargs) -> dict:
     if log_id is not None:
         log_name = f"{log_id}"
@@ -92,8 +96,13 @@ def resume(server: str, log_id: int, **kwargs) -> dict:
     return handle_response(requests.post(url, params=kwargs))
 
 
-def get_active(server: str) -> dict:
-    return read(server, None)
+def get_active(server: str) -> Optional[dict]:
+    try:
+        return read(server, None)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            return None
+        raise
 
 
 def read(server: str, log_id: int | None) -> dict:

@@ -17,6 +17,18 @@ class HelpCmd(BaseModel):
     _description = "Show help message and exit"
 
 
+class TuiCmd(BaseModel):
+    _description = "Start TUI (text user interface)"
+
+    read_only: bool = Field(
+        default=False,
+        description=(
+            "Disable all editing operations " +
+            "(this isn't safety feature, just a convenience)"
+        ),
+    )
+
+
 class StartCmd(BaseModel):
     _description = (
         "Start a new log of a working session and start tracking time" +
@@ -251,6 +263,9 @@ class CliArgs(BaseModel):
 
     help: Optional[HelpCmd] = Field(
         description=HelpCmd._description,
+    )
+    tui: Optional[TuiCmd] = Field(
+        description=TuiCmd._description,
     )
     start: Optional[StartCmd] = Field(
         description=StartCmd._description,

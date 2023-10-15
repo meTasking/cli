@@ -1,3 +1,4 @@
+from .tui import execute as cmd_tui
 from .start import execute as cmd_start
 from .next import execute as cmd_next
 from .pause import execute as cmd_pause
@@ -11,6 +12,7 @@ from .delete import execute as cmd_delete
 from .edit import execute as cmd_edit
 
 __all__ = [
+    "cmd_tui",
     "cmd_start",
     "cmd_next",
     "cmd_pause",

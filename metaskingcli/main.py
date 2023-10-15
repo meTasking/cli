@@ -3,6 +3,7 @@ import logging
 
 from .args import parse_arguments
 from .commands import (
+    cmd_tui,
     cmd_start,
     cmd_next,
     cmd_pause,
@@ -46,6 +47,8 @@ def main():
     code = 0
     if args.help:
         parser.print_help()
+    elif args.tui:
+        code = cmd_tui(args)
     elif args.start:
         code = cmd_start(args)
     elif args.next:
