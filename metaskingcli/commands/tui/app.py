@@ -90,6 +90,17 @@ class EditableStatic(Static, can_focus=True):
             self.save_callback(self.text)
         self.blur()
 
+    def key_escape(self) -> None:
+        self.blur()
+
+    def key_home(self) -> None:
+        self.cursor = 0
+
+    def key_end(self) -> None:
+        if self.text is None:
+            return
+        self.cursor = len(self.text)
+
     def key_backspace(self) -> None:
         if self.text is None:
             return
@@ -105,7 +116,7 @@ class EditableStatic(Static, can_focus=True):
         if self.text is None:
             return
 
-        if self.cursor == len(self.text):
+        if self.cursor >= len(self.text):
             return
 
         text = self.text[:self.cursor] + self.text[self.cursor + 1:]
@@ -121,13 +132,13 @@ class EditableStatic(Static, can_focus=True):
         if self.text is None:
             return
 
-        if self.cursor == len(self.text):
+        if self.cursor >= len(self.text):
             return
 
         self.cursor += 1
 
     def on_key(self, event: Key) -> None:
-        if event.character is None:
+        if event.character is None or not event.is_printable:
             return
 
         text = self.text
