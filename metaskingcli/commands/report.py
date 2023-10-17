@@ -4,11 +4,20 @@ from rich.progress import (
     Progress,
     TextColumn,
     BarColumn,
-    MofNCompleteColumn,
 )
 
 from metaskingcli.args import CliArgs
 from metaskingcli.api.log import list_all
+
+
+def split_hours(hours: float) -> dict[str, str]:
+    return {
+        'all': f"{hours:.2f}",
+        'hours': f"{hours:02.0f}",
+        'minutes': f"{(hours * 60.0) % 60.0:02.0f}",
+        'seconds': f"{(hours * 3600.0) % 60.0:02.0f}",
+        'milliseconds': f"{(hours * 3600000.0) % 1000.0:04.0f}",
+    }
 
 
 def execute(args: CliArgs) -> int:
@@ -53,14 +62,14 @@ def execute(args: CliArgs) -> int:
     # past days is not ideal, but it's better than no visualization at all.
     with Progress(
         TextColumn("[progress.description]{task.description}"),
-        TextColumn(" {task.fields[spent]} "),
+        TextColumn(" {task.fields[time][all]} "),
         BarColumn(bar_width=None),
         TextColumn(
             "  " +
-            "{task.fields[spent_hours]}h " +
-            "{task.fields[spent_minutes]}m " +
-            "{task.fields[spent_seconds]}s " +
-            "{task.fields[spent_milliseconds]}ms"
+            "{task.fields[time][hours]}h " +
+            "{task.fields[time][minutes]}m " +
+            "{task.fields[time][seconds]}s " +
+            "{task.fields[time][milliseconds]}ms"
         ),
         auto_refresh=False,
     ) as days_as_progress:
@@ -80,11 +89,7 @@ def execute(args: CliArgs) -> int:
                 cur_date.isoformat(),
                 total=round(max_value * 3600000.0),
                 completed=round(value * 3600000.0),
-                spent=f"{value:.2f}",
-                spent_hours=f"{value:02.0f}",
-                spent_minutes=f"{(value * 60.0) % 60.0:02.0f}",
-                spent_seconds=f"{(value * 3600.0) % 60.0:02.0f}",
-                spent_milliseconds=f"{(value * 3600000.0) % 1000.0:04.0f}",
+                time=split_hours(value),
             )
             cur_date += timedelta(days=1)
 
@@ -93,11 +98,7 @@ def execute(args: CliArgs) -> int:
             "Total",
             total=round(max_value * 3600000.0),
             completed=round(total_duration * 3600000.0),
-            spent=f"{total_duration:.2f}",
-            spent_hours=f"{total_duration:02.0f}",
-            spent_minutes=f"{(total_duration * 60.0) % 60.0:02.0f}",
-            spent_seconds=f"{(total_duration * 3600.0) % 60.0:02.0f}",
-            spent_milliseconds=f"{(total_duration * 3600000.0) % 1000.0:04.0f}",
+            time=split_hours(total_duration),
         )
 
     return 0
