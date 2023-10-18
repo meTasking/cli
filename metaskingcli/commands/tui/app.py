@@ -1,16 +1,20 @@
 from typing import Any, Callable, Mapping, Iterable
-from datetime import datetime
+from datetime import datetime, timedelta, date, time
+from functools import partial
+from enum import Enum
 
+from rich.console import Console, ConsoleOptions, RenderResult
+from rich.text import Text
 from textual import work
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, RenderResult as TextualRenderResult
 from textual._system_commands import SystemCommands
 from textual.command import Hit, Hits, Provider
 from textual.binding import Binding
 from textual.containers import ScrollableContainer, Container, Horizontal
 from textual.events import Key
 from textual.reactive import reactive
+from textual.widgets import Button, Footer, Header, Static, Tabs, Tab
 from textual.widget import Widget
-from textual.widgets import Button, Footer, Header, Static
 
 from metaskingcli.api.log import (
     get_active,
@@ -26,6 +30,150 @@ from metaskingcli.api.log import (
     delete,
     update
 )
+
+
+class BarCS(Enum):
+    EMPTY = 0
+    FULL = 1
+    LEFT = 2
+    RIGHT = 3
+
+    def merge(self, other: "BarCS") -> "BarCS":
+        if self == BarCS.EMPTY:
+            return other
+        elif self == BarCS.FULL:
+            return self
+        elif self == BarCS.LEFT:
+            if other == BarCS.RIGHT:
+                return BarCS.FULL
+            elif other == BarCS.FULL:
+                return other
+            else:
+                return self
+        elif self == BarCS.RIGHT:
+            if other == BarCS.LEFT:
+                return BarCS.FULL
+            elif other == BarCS.FULL:
+                return other
+            else:
+                return self
+        else:
+            raise Exception("Unknown state")
+
+
+class Bar:
+    def __init__(
+        self,
+        highlighted_ranges: list[tuple[float, float]] = [],
+    ) -> None:
+        self.highlighted_ranges = highlighted_ranges
+
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
+        highlight_style = console.get_style("dark_cyan")
+        background_style = console.get_style("grey37")
+
+        width = options.max_width
+        content: list[BarCS] = list(
+            BarCS.EMPTY for _ in range(width)
+        )
+
+        for highlight_range in self.highlighted_ranges:
+            start, end = highlight_range
+
+            start *= width
+            end *= width
+
+            start = max(start, 0)
+            end = min(end, width)
+
+            underflow = start % 1
+            overflow = end % 1
+
+            start = int(start)
+            if underflow >= 0.5:
+                content[start] = content[start]\
+                    .merge(BarCS.LEFT)
+                start += 1
+
+            end = int(end)
+            if overflow >= 0.5:
+                content[end + 1] = content[end + 1]\
+                    .merge(BarCS.RIGHT)
+
+            for i in range(start, end):
+                content[i] = content[i].merge(BarCS.FULL)
+
+        for i in range(len(content)):
+            c_prev = content[i - 1] if i > 0 else None
+            c_curr = content[i]
+            c_next = content[i + 1] if i < len(content) - 1 else None
+
+            # E -> E '━━'
+            # E -> L '━╺'
+            # E -> R '╸╸'
+            # E -> F '╸━'
+            # L -> E '╺╺'
+            # L -> L '╺╺'
+            # L -> R '╺╸'
+            # L -> F '╺━'
+            # R -> E '╸━'
+            # R -> L '╸╺'
+            # R -> R '╸╸'
+            # R -> F '╸━'
+            # F -> E '━╺'
+            # F -> L '━╺'
+            # F -> R '━╸'
+            # F -> F '━━'
+
+            match (c_prev, c_curr, c_next):
+                case (BarCS.EMPTY, BarCS.EMPTY, BarCS.EMPTY) | \
+                        (BarCS.EMPTY, BarCS.EMPTY, BarCS.LEFT) | \
+                        (BarCS.RIGHT, BarCS.EMPTY, BarCS.EMPTY) | \
+                        (BarCS.RIGHT, BarCS.EMPTY, BarCS.LEFT) | \
+                        (BarCS.EMPTY, BarCS.EMPTY, None) | \
+                        (BarCS.RIGHT, BarCS.EMPTY, None) | \
+                        (None, BarCS.EMPTY, BarCS.EMPTY) | \
+                        (None, BarCS.EMPTY, BarCS.LEFT):
+                    yield Text("━", style=background_style, end="")
+                case (BarCS.LEFT, BarCS.EMPTY, BarCS.EMPTY) | \
+                        (BarCS.LEFT, BarCS.EMPTY, BarCS.LEFT) | \
+                        (BarCS.FULL, BarCS.EMPTY, BarCS.EMPTY) | \
+                        (BarCS.FULL, BarCS.EMPTY, BarCS.LEFT) | \
+                        (BarCS.LEFT, BarCS.EMPTY, None) | \
+                        (BarCS.FULL, BarCS.EMPTY, None):
+                    yield Text("╺", style=background_style, end="")
+                case (BarCS.EMPTY, BarCS.EMPTY, BarCS.RIGHT) | \
+                        (BarCS.EMPTY, BarCS.EMPTY, BarCS.FULL) | \
+                        (BarCS.RIGHT, BarCS.EMPTY, BarCS.RIGHT) | \
+                        (BarCS.RIGHT, BarCS.EMPTY, BarCS.FULL) | \
+                        (None, BarCS.EMPTY, BarCS.RIGHT) | \
+                        (None, BarCS.EMPTY, BarCS.FULL):
+                    yield Text("╸", style=background_style, end="")
+                case (BarCS.LEFT, BarCS.EMPTY, BarCS.RIGHT) | \
+                        (BarCS.LEFT, BarCS.EMPTY, BarCS.FULL) | \
+                        (BarCS.FULL, BarCS.EMPTY, BarCS.RIGHT) | \
+                        (BarCS.FULL, BarCS.EMPTY, BarCS.FULL):
+                    # This is conflict between two conversions
+                    # Let's just add space - there will be more blank space
+                    yield Text(" ", style=background_style, end="")
+                case (_, BarCS.LEFT, _):
+                    yield Text("╺", style=highlight_style, end="")
+                case (_, BarCS.RIGHT, _):
+                    yield Text("╸", style=highlight_style, end="")
+                case (_, BarCS.FULL, _):
+                    yield Text("━", style=highlight_style, end="")
+                case _:
+                    raise Exception("Unhandled bar state")
+
+        # Fire actions when certain ranges are clicked (e.g. for tabs)
+        # for range_name, (start, end) in self.clickable_ranges.items():
+        #     output_bar.apply_meta(
+        #         {"@click": f"range_clicked('{range_name}')"}, start, end
+        #     )
+
+        pass
 
 
 class EditableStatic(Static, can_focus=True):
@@ -199,28 +347,36 @@ class WorkLog(Static):
         dock: left;
     }
 
+    WorkLog .log-visualization {
+        width: 100%;
+        height: 1;
+    }
+
     WorkLog .log-date {
         text-opacity: 80%;
-        width: auto;
+        width: 100%;
         height: 1;
     }
 
     WorkLog .log-time {
         text-opacity: 80%;
-        width: auto;
+        width: 100%;
         height: 1;
     }
 
     WorkLog .log-description {
         content-align: center middle;
         text-opacity: 80%;
-        width: auto;
-        height: 3;
+        width: 100%;
+        height: 2;
+    }
+
+    WorkLog .log-description :focus {
+        text-opacity: 100%;
     }
 
     WorkLog .log-middle {
-        content-align: center middle;
-        width: auto;
+        width: 100%;
         height: 5;
         border-left: solid darkgray;
         border-right: hidden darkgray;
@@ -271,6 +427,7 @@ class WorkLog(Static):
     end_date: str
     start_time: str
     end_time: str
+    activity_ranges: list[tuple[float, float]]
     active: bool
 
     def __init__(
@@ -290,16 +447,19 @@ class WorkLog(Static):
         self.end_date = "No records"
         self.start_time = "--:--:--"
         self.end_time = "--:--:--"
+        self.activity_ranges = []
         self.active = False
 
         if len(self._log['records']) > 0:
             log_start = datetime.fromisoformat(
                 self._log['records'][0]['start']
             )
-            log_end_str = self._log['records'][-1]['end']
 
             self.start_date = log_start.strftime("%Y-%m-%d")
             self.start_time = log_start.strftime("%H:%M:%S")
+
+            log_end_str = self._log['records'][-1]['end']
+            log_end = datetime.now()
 
             if log_end_str is not None:
                 log_end = datetime.fromisoformat(log_end_str)
@@ -308,6 +468,25 @@ class WorkLog(Static):
             else:
                 self.end_date = self.start_date
                 self.active = True
+
+            duration = (log_end - log_start).total_seconds()
+
+            def get_activity_range(
+                record: dict[str, Any]
+            ) -> tuple[float, float]:
+                start_time = datetime.fromisoformat(record['start'])
+                start = (start_time - log_start).total_seconds() / duration
+                if record['end'] is None:
+                    return (start, duration)
+
+                end_time = datetime.fromisoformat(record['end'])
+                end = (end_time - log_start).total_seconds() / duration
+                return (start, end)
+
+            self.activity_ranges = list(map(
+                get_activity_range,
+                self._log['records'],
+            ))
 
         super().__init__(**kwargs)
 
@@ -345,81 +524,94 @@ class WorkLog(Static):
             description=description,
         )
 
-    def _generate_identifiers(self) -> Iterable[Widget]:
-        yield EditableStatic(
-            self._log['category']['name'] if self._log['category'] else None,
-            fallback_text="Default",
-            save_callback=self.save_category,
-            classes="log-category"
-        )
-        yield EditableStatic(
-            self._log['task']['name'] if self._log['task'] else None,
-            fallback_text="Default",
-            save_callback=self.save_task,
-            classes="log-task"
-        )
-
-        yield Static(str(self._log['id']), classes="log-id")
-        yield EditableStatic(
-            self._log['name'],
-            fallback_text="---",
-            save_callback=self.save_name,
-            classes="log-name"
-        )
-        yield Static(
-            '[' + (','.join(self._log['flags'])) + ']',
-            classes="log-flags"
-        )
-
-    def _generate_middle(self) -> Iterable[Widget]:
-        date_str = self.start_date
-        if self.start_date != self.end_date:
-            date_str += " - " + self.end_date
-        yield Static(date_str, classes="log-date")
-
-        time_str = self.start_time + " - " + self.end_time
-        yield Static(time_str, classes="log-time")
-
-        yield EditableStatic(
-            self._log['description'],
-            fallback_text="No description",
-            save_callback=self.save_description,
-            classes="log-description"
-        )
-
-    def _generate_buttons(self) -> Iterable[Widget]:
-        if self._read_only_mode:
-            return
-
-        if not self._log['stopped']:
-            yield Button("Stop", name="stop", classes="log-button log-stop")
-
-        if self.active:
-            yield Button("Pause", name="pause", classes="log-button log-pause")
-        else:
-            yield Button(
-                "Resume",
-                name="resume",
-                classes="log-button log-resume"
+    def compose(self) -> ComposeResult:
+        with Container(classes="log-identifiers"):
+            yield EditableStatic(
+                (
+                    self._log['category']['name']
+                    if self._log['category'] else None
+                ),
+                fallback_text="Default",
+                save_callback=self.save_category,
+                classes="log-category"
+            )
+            yield EditableStatic(
+                (
+                    self._log['task']['name']
+                    if self._log['task'] else None
+                ),
+                fallback_text="Default",
+                save_callback=self.save_task,
+                classes="log-task"
             )
 
-        # yield Button("Edit", name="edit", classes="log-button log-edit")
-        yield Button("Delete", name="delete", classes="log-button log-delete")
+            yield Static(str(self._log['id']), classes="log-id")
+            yield EditableStatic(
+                self._log['name'],
+                fallback_text="---",
+                save_callback=self.save_name,
+                classes="log-name"
+            )
+            yield Static(
+                '[' + (','.join(self._log['flags'])) + ']',
+                classes="log-flags"
+            )
 
-    def compose(self) -> ComposeResult:
-        yield Container(
-            *self._generate_identifiers(),
-            classes="log-identifiers",
-        )
-        yield Container(
-            *self._generate_middle(),
-            classes="log-middle",
-        )
+        with Container(classes="log-middle"):
+            yield Static(
+                Bar(self.activity_ranges),
+                classes="log-visualization"
+            )
 
-        yield Horizontal(
-            *self._generate_buttons(),
-            classes="log-buttons",
-        )
+            date_str = self.start_date
+            if self.start_date != self.end_date:
+                date_str += " - " + self.end_date
+            yield Static(date_str, classes="log-date")
+
+            time_str = self.start_time + " - " + self.end_time
+            yield Static(time_str, classes="log-time")
+
+            yield EditableStatic(
+                self._log['description'],
+                fallback_text="No description",
+                save_callback=self.save_description,
+                classes="log-description"
+            )
+
+        with Horizontal(classes="log-buttons"):
+            if self._read_only_mode:
+                return
+
+            if not self._log['stopped']:
+                yield Button(
+                    "Stop",
+                    name="stop",
+                    classes="log-button log-stop"
+                )
+
+            if self.active:
+                yield Button(
+                    "Pause",
+                    name="pause",
+                    classes="log-button log-pause"
+                )
+            else:
+                yield Button(
+                    "Resume",
+                    name="resume",
+                    classes="log-button log-resume"
+                )
+
+            # yield Button(
+            #     "Edit",
+            #     name="edit",
+            #     classes="log-button log-edit"
+            # )
+            yield Button(
+                "Delete",
+                name="delete",
+                classes="log-button log-delete"
+            )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Event handler called when a button is pressed."""
@@ -570,6 +762,283 @@ class LogList(ScrollableContainer):
         return super().watch_scroll_y(old_value, new_value)
 
 
+DAY_SECONDS = 24 * 60 * 60
+CALENDAR_HEIGHT = 96
+
+
+def _get_week_start(date: date) -> date:
+    return date - timedelta(days=date.weekday())
+
+
+class WorkLogCalendarHours(Widget):
+
+    DEFAULT_CSS = """
+    WorkLogCalendarHours {
+        border-top: solid cyan;
+        border-bottom: solid cyan;
+        height: """ + str(CALENDAR_HEIGHT+2) + """;
+        width: 3;
+    }
+    """
+
+    def render(self) -> TextualRenderResult:
+        height = CALENDAR_HEIGHT
+
+        lines = [
+            Text(
+                "",
+                end="",
+            )
+            for _ in range(height)
+        ]
+        for i in range(24):
+            lines[int(i * height / 24)] = Text(
+                str(i),
+                style="bold",
+                end="",
+            )
+
+        output = Text("", end="")  # Header
+        for line in lines:
+            output.append("\n")
+            output.append(line)
+
+        return output
+
+
+class WorkLogCalendarDay(Widget):
+
+    DEFAULT_CSS = """
+    WorkLogCalendarDay {
+        border: solid cyan;
+        height: """ + str(CALENDAR_HEIGHT+2) + """;
+        width: 1fr;
+        color: darkcyan;
+    }
+    """
+
+    logs_server: str
+    day: reactive[date] = reactive(date.today())
+
+    _ranges: list[tuple[float, float, str]] = []
+
+    def __init__(
+        self,
+        server: str,
+        day: date,
+        **kwargs
+    ) -> None:
+        self.logs_server = server
+        super().__init__(**kwargs)
+        self.day = day
+
+    def on_mount(self) -> None:
+        self.refresh_data()
+
+    def watch_day(self, new_value: date) -> None:
+        self._ranges = []
+        self.refresh(layout=True)
+        self.refresh_data()
+
+    def date_header(self) -> Text:
+        width = self.size.width - 2
+        width = max(width, 0)
+        return Text(
+            self.day.strftime((" " * int(width / 2)) + "%d"),
+            style="bold",
+            end=""
+        )
+
+    def render(self) -> TextualRenderResult:
+        header = self.date_header()
+
+        width = self.size.width
+        height = CALENDAR_HEIGHT
+        lines = [
+            Text(
+                " " * int(width),
+                end="",
+            )
+            for _ in range(height)
+        ]
+        for i in range(24):
+            lines[int(i * height / 24)] = Text(
+                "─" * int(width),
+                end="",
+            )
+
+        for rstart, rend, name in self._ranges:
+            rstart = max(int(rstart * height), 0)
+            rend = min(int(rend * height), height)
+            rname = " " + name
+            rname = rname[:int(width-1)] + " "
+            oname = Text(
+                rname + " " * (int(width) - len(rname)),
+                style="reverse",
+                end="",
+            )
+            for i in range(rstart, rend):
+                if i == rstart:
+                    lines[i] = oname
+                    continue
+                lines[i] = Text(
+                    "█" * int(width),
+                    end="",
+                )
+
+        output = header
+        for line in lines:
+            output.append("\n")
+            output.append(line)
+
+        return output
+
+    @work(thread=True)
+    def refresh_data(self) -> None:
+        ranges = []
+
+        since = datetime.combine(self.day, time.min)
+        until = datetime.combine(self.day, time.max)
+
+        offset = 0
+        while True:
+            logs = list_all(
+                self.logs_server,
+                since=since,
+                until=until,
+                offset=offset,
+                limit=100,
+            )
+
+            if len(logs) == 0:
+                break
+            offset += len(logs)
+
+            for log in logs:
+                for record in log['records']:
+                    start_time = datetime.fromisoformat(record['start'])
+                    end_time = datetime.fromisoformat(record['end'])
+                    start = (start_time - since).total_seconds() / DAY_SECONDS
+                    end = (end_time - since).total_seconds() / DAY_SECONDS
+                    description = (
+                        "" if log['description'] is None
+                        else log['description']
+                    )
+                    range_name = f"{log['name']}: {description}"
+                    ranges.append((start, end, range_name))
+
+        self._ranges = ranges
+        self.call_after_refresh(partial(self.refresh, layout=True))
+
+
+class WorkLogCalendar(ScrollableContainer):
+
+    DEFAULT_CSS = """
+    WorkLogCalendar .container-calendar-week {
+        height: auto;
+        width: 100%;
+    }
+
+    WorkLogCalendar .container-calendar-header {
+        height: 3;
+        width: 100%;
+    }
+
+    WorkLogCalendar .calendar-button-previous {
+        dock: left;
+    }
+
+    WorkLogCalendar .calendar-button-next {
+        dock: right;
+    }
+
+    WorkLogCalendar .calendar-date-heading {
+        content-align: center middle;
+        height: 3;
+        width: 100%;
+    }
+    """
+
+    logs_server: str
+    week_start: reactive[date] = reactive(
+        lambda: _get_week_start(date.today())
+    )
+
+    def __init__(
+        self,
+        server: str,
+        **kwargs
+    ) -> None:
+        self.logs_server = server
+        super().__init__(**kwargs)
+
+    @property
+    def week_end(self) -> date:
+        return self.week_start + timedelta(days=7)
+
+    def watch_week_start(self, old_value: date, new_value: date) -> None:
+        if old_value == new_value:
+            # This is called during initialization which is bad
+            return
+
+        heading: Static = self.query_one(
+            ".calendar-date-heading"
+        )  # type: ignore
+        heading.update(
+            f"{self.week_start.strftime('%Y-%m-%d')} - " +
+            f"{self.week_end.strftime('%Y-%m-%d')}"
+        )
+
+        for i in range(7):
+            day: WorkLogCalendarDay = self.query_one(  # type: ignore
+                f".container-calendar-day-{i}"
+            )
+            day.day = self.week_start + timedelta(days=i)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Event handler called when a button is pressed."""
+
+        button_name = event.button.name
+        if button_name == "previous":
+            self.week_start -= timedelta(days=7)
+        elif button_name == "next":
+            self.week_start += timedelta(days=7)
+
+    def compose(self) -> ComposeResult:
+        with Container(classes="container-calendar-header"):
+            yield Button(
+                "<",
+                name="previous",
+                classes="calendar-button-previous",
+            )
+            yield Static(
+                f"{self.week_start.strftime('%Y-%m-%d')} - " +
+                f"{self.week_end.strftime('%Y-%m-%d')}",
+                classes="calendar-date-heading",
+            )
+            yield Button(
+                ">",
+                name="next",
+                classes="calendar-button-next",
+            )
+
+        with Horizontal(classes="container-calendar-week"):
+            yield WorkLogCalendarHours()
+            for i in range(7):
+                yield WorkLogCalendarDay(
+                    self.logs_server,
+                    self.week_start + timedelta(days=i),
+                    classes=(
+                        "container-calendar-day " +
+                        "container-calendar-day-" + str(i)
+                    ),
+                )
+
+    def refresh_data(self) -> None:
+        for day_widget in self.query(WorkLogCalendarDay).results():
+            day_widget.refresh_data()
+
+
 class MeTaskingTuiCommands(Provider):
 
     async def search(self, query: str) -> Hits:
@@ -656,6 +1125,10 @@ class MeTaskingTuiCommands(Provider):
 class MeTaskingTui(App):
 
     CSS = """
+    Tabs {
+        dock: top;
+    }
+
     .heading {
         text-style: bold;
         border-bottom: solid darkgray;
@@ -681,6 +1154,19 @@ class MeTaskingTui(App):
     .container-top {
         padding-left: 1;
         padding-right: 1;
+    }
+
+    #container-logs {
+        height: 100%;
+        display: none;
+    }
+
+    #container-calendar {
+        display: none;
+    }
+
+    .tab-selected {
+        display: block !important;
     }
 
     #container-active-log,
@@ -720,69 +1206,94 @@ class MeTaskingTui(App):
         super().__init__()
 
     def on_mount(self) -> None:
+        self.query_one(Tabs).focus()
         self.call_after_refresh(self.action_refresh)
+
+    def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
+        if event.tab is None:
+            self.query_one("#container-calendar").remove_class("tab-selected")
+            self.query_one("#container-logs").remove_class("tab-selected")
+        elif event.tab.id == "tab-logs":
+            self.query_one("#container-calendar").remove_class("tab-selected")
+            self.query_one("#container-logs").add_class("tab-selected")
+        elif event.tab.id == "tab-calendar":
+            self.query_one("#container-logs").remove_class("tab-selected")
+            self.query_one("#container-calendar").add_class("tab-selected")
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Footer()
-
-        heading_active_log = Static("Active log(s)", classes="heading")
-        yield Container(
-            heading_active_log,
-            LogList(
-                server=self._server,
-                only_active=True,
-                reload_all_logs=self.action_refresh,
-                read_only_mode=self._read_only_mode,
-                id="container-active-log-inner",
-            ),
-            id="container-active-log",
-            classes="container-top",
+        yield Tabs(
+            Tab("Logs", id="tab-logs"),
+            Tab("Calendar", id="tab-calendar"),
         )
 
-        heading_non_stopped_logs = Static(
-            "Non-stopped log(s)",
-            classes="heading",
-        )
-        non_stopped_logs_container = Container(
-            heading_non_stopped_logs,
-            LogList(
-                server=self._server,
-                only_active=False,
-                filters={"stopped": False},
-                reload_all_logs=self.action_refresh,
-                read_only_mode=self._read_only_mode,
-                id="container-non-stopped-logs-inner",
-            ),
-            id="container-non-stopped-logs",
-            classes="container-top",
-        )
+        with Container(
+            id="container-logs",
+            # classes="container-top",
+        ):
+            with Container(
+                id="container-active-log",
+                classes="container-top",
+            ):
+                yield Static("Active log(s)", classes="heading")
+                yield LogList(
+                    server=self._server,
+                    only_active=True,
+                    reload_all_logs=self.action_refresh,
+                    read_only_mode=self._read_only_mode,
+                    id="container-active-log-inner",
+                )
 
-        heading_stopped_logs = Static("Stopped log(s)", classes="heading")
-        stopped_logs_container = Container(
-            heading_stopped_logs,
-            LogList(
-                server=self._server,
-                only_active=False,
-                filters={"stopped": True},
-                reload_all_logs=self.action_refresh,
-                read_only_mode=self._read_only_mode,
-                id="container-stopped-logs-inner",
-            ),
-            id="container-stopped-logs",
-            classes="container-top",
-        )
+            with AutoLoadScrollableContainer(
+                scroll_end_callback=self.action_more
+            ):
+                with Container(
+                    id="container-non-stopped-logs",
+                    classes="container-top",
+                ):
+                    yield Static(
+                        "Non-stopped log(s)",
+                        classes="heading",
+                    )
+                    yield LogList(
+                        server=self._server,
+                        only_active=False,
+                        filters={"stopped": False},
+                        reload_all_logs=self.action_refresh,
+                        read_only_mode=self._read_only_mode,
+                        id="container-non-stopped-logs-inner",
+                    )
 
-        yield AutoLoadScrollableContainer(
-            non_stopped_logs_container,
-            stopped_logs_container,
-            scroll_end_callback=self.action_more
+                with Container(
+                    id="container-stopped-logs",
+                    classes="container-top",
+                ):
+                    yield Static(
+                        "Stopped log(s)",
+                        classes="heading",
+                    )
+                    yield LogList(
+                        server=self._server,
+                        only_active=False,
+                        filters={"stopped": True},
+                        reload_all_logs=self.action_refresh,
+                        read_only_mode=self._read_only_mode,
+                        id="container-stopped-logs-inner",
+                    )
+
+        yield WorkLogCalendar(
+            server=self._server,
+            id="container-calendar",
+            # classes="container-top",
         )
 
     def action_refresh(self) -> None:
         """An action to refresh data."""
         for log_list in self.query(LogList).results():
             log_list.reload_logs()
+        for calendar in self.query(WorkLogCalendar).results():
+            calendar.refresh_data()
 
     @work(thread=True)
     def action_delete(self) -> None:
