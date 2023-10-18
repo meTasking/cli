@@ -1,4 +1,5 @@
 from typing import Any, Callable, Mapping, Iterable
+import math
 from datetime import datetime, timedelta, date, time
 from functools import partial
 from enum import Enum
@@ -12,6 +13,7 @@ from textual.command import Hit, Hits, Provider
 from textual.binding import Binding
 from textual.containers import ScrollableContainer, Container, Horizontal
 from textual.events import Key
+from textual.geometry import Region
 from textual.reactive import reactive
 from textual.widgets import Button, Footer, Header, Static, Tabs, Tab
 from textual.widget import Widget
@@ -379,7 +381,7 @@ class WorkLog(Static):
         width: 100%;
         height: 5;
         border-left: solid darkgray;
-        border-right: hidden darkgray;
+        border-right: solid darkgray;
         margin-left: 1;
         margin-right: 1;
         padding-left: 1;
@@ -764,6 +766,9 @@ class LogList(ScrollableContainer):
 
 DAY_SECONDS = 24 * 60 * 60
 CALENDAR_HEIGHT = 96
+FULL_HOUR_MARKERS = {
+    int(i * CALENDAR_HEIGHT / 24): i for i in range(24)
+}
 
 
 def _get_week_start(date: date) -> date:
@@ -786,17 +791,16 @@ class WorkLogCalendarHours(Widget):
 
         lines = [
             Text(
-                "",
-                end="",
-            )
-            for _ in range(height)
-        ]
-        for i in range(24):
-            lines[int(i * height / 24)] = Text(
-                str(i),
+                (
+                    str(FULL_HOUR_MARKERS[i])
+                    if i in FULL_HOUR_MARKERS
+                    else ""
+                ),
                 style="bold",
                 end="",
             )
+            for i in range(height)
+        ]
 
         output = Text("", end="")  # Header
         for line in lines:
@@ -804,6 +808,380 @@ class WorkLogCalendarHours(Widget):
             output.append(line)
 
         return output
+
+
+def merge_ranges(
+    ranges: list[tuple[float, float]],
+) -> list[tuple[float, float]]:
+    """Merge overlapping ranges."""
+
+    if len(ranges) == 0:
+        return []
+
+    ranges = sorted(ranges, key=lambda r: r[0])
+
+    i = 0
+    merged_ranges = []
+    while i < len(ranges):
+        start, end = ranges[i]
+        i += 1
+
+        while i < len(ranges):
+            next_start, next_end = ranges[i]
+            if next_start <= end:
+                end = max(end, next_end)
+                ranges.pop(i)
+            else:
+                break
+
+        merged_ranges.append((start, end))
+
+    return merged_ranges
+
+
+class WLCalCS(Enum):
+
+    EMPTY = 0
+    FULL = 1
+    END_1 = 2  # 1/8
+    END_2 = 3  # 1/4
+    END_3 = 4  # 3/8
+    END_4 = 5  # 1/2
+    END_5 = 6  # 5/8
+    END_6 = 7  # 3/4
+    END_7 = 8  # 7/8
+    START_1 = 9  # 1/8
+    START_2 = 10  # 1/4
+    START_3 = 11  # 3/8
+    START_4 = 12  # 1/2
+    START_5 = 13  # 5/8
+    START_6 = 14  # 3/4
+    START_7 = 15  # 7/8
+    MIDDLE = 16  # (start 1/8 - 1/2) - (end 1/2 - 1/8)
+    FUZZY = 17  # Multiple ranges
+
+    def range_position(self) -> float:
+        match self:
+            case WLCalCS.EMPTY:
+                return 0
+            case WLCalCS.FULL:
+                return 1
+            case WLCalCS.END_1:
+                return 1/8
+            case WLCalCS.END_2:
+                return 2/8
+            case WLCalCS.END_3:
+                return 3/8
+            case WLCalCS.END_4:
+                return 4/8
+            case WLCalCS.END_5:
+                return 5/8
+            case WLCalCS.END_6:
+                return 6/8
+            case WLCalCS.END_7:
+                return 7/8
+            case WLCalCS.START_1:
+                return 7/8
+            case WLCalCS.START_2:
+                return 6/8
+            case WLCalCS.START_3:
+                return 5/8
+            case WLCalCS.START_4:
+                return 4/8
+            case WLCalCS.START_5:
+                return 3/8
+            case WLCalCS.START_6:
+                return 2/8
+            case WLCalCS.START_7:
+                return 1/8
+            case WLCalCS.MIDDLE:
+                return 0.5
+            case WLCalCS.FUZZY:
+                return 0.5
+
+    @staticmethod
+    def from_ranges(
+        ranges: list[tuple[float, float]],
+    ) -> "WLCalCS":
+        ranges = merge_ranges(ranges)
+
+        if len(ranges) == 0:
+            return WLCalCS.EMPTY
+
+        if len(ranges) != 1:
+            return WLCalCS.FUZZY
+
+        half_step = 1/16
+
+        start, end = ranges[0]
+        if start < half_step and end >= 1 - half_step:
+            return WLCalCS.FULL
+
+        if start < half_step:
+            if end >= WLCalCS.END_7.range_position() - half_step:
+                return WLCalCS.END_7
+            if end >= WLCalCS.END_6.range_position() - half_step:
+                return WLCalCS.END_6
+            if end >= WLCalCS.END_5.range_position() - half_step:
+                return WLCalCS.END_5
+            if end >= WLCalCS.END_4.range_position() - half_step:
+                return WLCalCS.END_4
+            if end >= WLCalCS.END_3.range_position() - half_step:
+                return WLCalCS.END_3
+            if end >= WLCalCS.END_2.range_position() - half_step:
+                return WLCalCS.END_2
+            if end >= WLCalCS.END_1.range_position() - half_step:
+                return WLCalCS.END_1
+            return WLCalCS.EMPTY
+
+        if end >= 1 - half_step:
+            if start < WLCalCS.START_7.range_position() + half_step:
+                return WLCalCS.START_7
+            if start < WLCalCS.START_6.range_position() + half_step:
+                return WLCalCS.START_6
+            if start < WLCalCS.START_5.range_position() + half_step:
+                return WLCalCS.START_5
+            if start < WLCalCS.START_4.range_position() + half_step:
+                return WLCalCS.START_4
+            if start < WLCalCS.START_3.range_position() + half_step:
+                return WLCalCS.START_3
+            if start < WLCalCS.START_2.range_position() + half_step:
+                return WLCalCS.START_2
+            if start < WLCalCS.START_1.range_position() + half_step:
+                return WLCalCS.START_1
+            return WLCalCS.EMPTY
+
+        if start >= half_step and \
+                start < WLCalCS.START_4.range_position() + half_step and \
+                end >= WLCalCS.END_4.range_position() - half_step and \
+                end < 1 - half_step:
+            return WLCalCS.MIDDLE
+
+        return WLCalCS.FUZZY
+
+    def as_text(self) -> Text:
+        match self:
+            case WLCalCS.EMPTY:
+                return Text(" ", end="")
+            case WLCalCS.FULL:
+                return Text("█", end="")
+            case WLCalCS.END_1:
+                return Text("▔", end="")
+            case WLCalCS.END_2:
+                return Text("▂", style="reverse", end="")
+            case WLCalCS.END_3:
+                return Text("▄", style="reverse", end="")
+            case WLCalCS.END_4:
+                return Text("▀", end="")
+            case WLCalCS.END_5:
+                return Text("▅", style="reverse", end="")
+            case WLCalCS.END_6:
+                return Text("▆", style="reverse", end="")
+            case WLCalCS.END_7:
+                return Text("▇", style="reverse", end="")
+            case WLCalCS.START_1:
+                return Text("▁", end="")
+            case WLCalCS.START_2:
+                return Text("▂", end="")
+            case WLCalCS.START_3:
+                return Text("▃", end="")
+            case WLCalCS.START_4:
+                return Text("▄", end="")
+            case WLCalCS.START_5:
+                return Text("▅", end="")
+            case WLCalCS.START_6:
+                return Text("▆", end="")
+            case WLCalCS.START_7:
+                return Text("▇", end="")
+            case WLCalCS.MIDDLE:
+                return Text("━", end="")
+            case WLCalCS.FUZZY:
+                return Text("░", end="")
+
+    # def merge(self, other: "WLCalCS") -> "WLCalCS":
+    #     match (self, other):
+    #         # At least one full
+    #         case (WLCalCS.FULL, _) | \
+    #                 (_, WLCalCS.FULL):
+    #             return WLCalCS.FULL
+    #         # Both empty
+    #         case (WLCalCS.EMPTY, WLCalCS.EMPTY):
+    #             return WLCalCS.EMPTY
+    #         # Both same
+    #         case (WLCalCS.END_1, WLCalCS.END_1) | \
+    #                 (WLCalCS.END_2, WLCalCS.END_2) | \
+    #                 (WLCalCS.END_3, WLCalCS.END_3) | \
+    #                 (WLCalCS.END_4, WLCalCS.END_4) | \
+    #                 (WLCalCS.END_5, WLCalCS.END_5) | \
+    #                 (WLCalCS.END_6, WLCalCS.END_6) | \
+    #                 (WLCalCS.END_7, WLCalCS.END_7) | \
+    #                 (WLCalCS.START_1, WLCalCS.START_1) | \
+    #                 (WLCalCS.START_2, WLCalCS.START_2) | \
+    #                 (WLCalCS.START_3, WLCalCS.START_3) | \
+    #                 (WLCalCS.START_4, WLCalCS.START_4) | \
+    #                 (WLCalCS.START_5, WLCalCS.START_5) | \
+    #                 (WLCalCS.START_6, WLCalCS.START_6) | \
+    #                 (WLCalCS.START_7, WLCalCS.START_7) | \
+    #                 (WLCalCS.MIDDLE, WLCalCS.MIDDLE):
+    #             return self
+    #         # Both add up to exactly full
+    #         case (WLCalCS.END_1, WLCalCS.START_7) | \
+    #                 (WLCalCS.END_2, WLCalCS.START_6) | \
+    #                 (WLCalCS.END_3, WLCalCS.START_5) | \
+    #                 (WLCalCS.END_4, WLCalCS.START_4) | \
+    #                 (WLCalCS.END_5, WLCalCS.START_3) | \
+    #                 (WLCalCS.END_6, WLCalCS.START_2) | \
+    #                 (WLCalCS.END_7, WLCalCS.START_1) | \
+    #                 (WLCalCS.START_1, WLCalCS.END_7) | \
+    #                 (WLCalCS.START_2, WLCalCS.END_6) | \
+    #                 (WLCalCS.START_3, WLCalCS.END_5) | \
+    #                 (WLCalCS.START_4, WLCalCS.END_4) | \
+    #                 (WLCalCS.START_5, WLCalCS.END_3) | \
+    #                 (WLCalCS.START_6, WLCalCS.END_2) | \
+    #                 (WLCalCS.START_7, WLCalCS.END_1):
+    #             return WLCalCS.FULL
+    #         # Both start, but first starts earlier
+    #         case (WLCalCS.START_7, WLCalCS.START_1) | \
+    #                 (WLCalCS.START_7, WLCalCS.START_2) | \
+    #                 (WLCalCS.START_7, WLCalCS.START_3) | \
+    #                 (WLCalCS.START_7, WLCalCS.START_4) | \
+    #                 (WLCalCS.START_7, WLCalCS.START_5) | \
+    #                 (WLCalCS.START_7, WLCalCS.START_6) | \
+    #                 (WLCalCS.START_6, WLCalCS.START_1) | \
+    #                 (WLCalCS.START_6, WLCalCS.START_2) | \
+    #                 (WLCalCS.START_6, WLCalCS.START_3) | \
+    #                 (WLCalCS.START_6, WLCalCS.START_4) | \
+    #                 (WLCalCS.START_6, WLCalCS.START_5) | \
+    #                 (WLCalCS.START_5, WLCalCS.START_1) | \
+    #                 (WLCalCS.START_5, WLCalCS.START_2) | \
+    #                 (WLCalCS.START_5, WLCalCS.START_3) | \
+    #                 (WLCalCS.START_5, WLCalCS.START_4) | \
+    #                 (WLCalCS.START_4, WLCalCS.START_1) | \
+    #                 (WLCalCS.START_4, WLCalCS.START_2) | \
+    #                 (WLCalCS.START_4, WLCalCS.START_3) | \
+    #                 (WLCalCS.START_3, WLCalCS.START_1) | \
+    #                 (WLCalCS.START_3, WLCalCS.START_2) | \
+    #                 (WLCalCS.START_2, WLCalCS.START_1):
+    #             return self
+    #         # Both start, but second starts earlier
+    #         case (WLCalCS.START_1, WLCalCS.START_7) | \
+    #                 (WLCalCS.START_2, WLCalCS.START_7) | \
+    #                 (WLCalCS.START_3, WLCalCS.START_7) | \
+    #                 (WLCalCS.START_4, WLCalCS.START_7) | \
+    #                 (WLCalCS.START_5, WLCalCS.START_7) | \
+    #                 (WLCalCS.START_6, WLCalCS.START_7) | \
+    #                 (WLCalCS.START_1, WLCalCS.START_6) | \
+    #                 (WLCalCS.START_2, WLCalCS.START_6) | \
+    #                 (WLCalCS.START_3, WLCalCS.START_6) | \
+    #                 (WLCalCS.START_4, WLCalCS.START_6) | \
+    #                 (WLCalCS.START_5, WLCalCS.START_6) | \
+    #                 (WLCalCS.START_1, WLCalCS.START_5) | \
+    #                 (WLCalCS.START_2, WLCalCS.START_5) | \
+    #                 (WLCalCS.START_3, WLCalCS.START_5) | \
+    #                 (WLCalCS.START_4, WLCalCS.START_5) | \
+    #                 (WLCalCS.START_1, WLCalCS.START_4) | \
+    #                 (WLCalCS.START_2, WLCalCS.START_4) | \
+    #                 (WLCalCS.START_3, WLCalCS.START_4) | \
+    #                 (WLCalCS.START_1, WLCalCS.START_3) | \
+    #                 (WLCalCS.START_2, WLCalCS.START_3) | \
+    #                 (WLCalCS.START_1, WLCalCS.START_2):
+    #             return other
+    #         # Both end, but first ends later
+    #         case (WLCalCS.END_7, WLCalCS.END_1) | \
+    #                 (WLCalCS.END_7, WLCalCS.END_2) | \
+    #                 (WLCalCS.END_7, WLCalCS.END_3) | \
+    #                 (WLCalCS.END_7, WLCalCS.END_4) | \
+    #                 (WLCalCS.END_7, WLCalCS.END_5) | \
+    #                 (WLCalCS.END_7, WLCalCS.END_6) | \
+    #                 (WLCalCS.END_6, WLCalCS.END_1) | \
+    #                 (WLCalCS.END_6, WLCalCS.END_2) | \
+    #                 (WLCalCS.END_6, WLCalCS.END_3) | \
+    #                 (WLCalCS.END_6, WLCalCS.END_4) | \
+    #                 (WLCalCS.END_6, WLCalCS.END_5) | \
+    #                 (WLCalCS.END_5, WLCalCS.END_1) | \
+    #                 (WLCalCS.END_5, WLCalCS.END_2) | \
+    #                 (WLCalCS.END_5, WLCalCS.END_3) | \
+    #                 (WLCalCS.END_5, WLCalCS.END_4) | \
+    #                 (WLCalCS.END_4, WLCalCS.END_1) | \
+    #                 (WLCalCS.END_4, WLCalCS.END_2) | \
+    #                 (WLCalCS.END_4, WLCalCS.END_3) | \
+    #                 (WLCalCS.END_3, WLCalCS.END_1) | \
+    #                 (WLCalCS.END_3, WLCalCS.END_2) | \
+    #                 (WLCalCS.END_2, WLCalCS.END_1):
+    #             return self
+    #         # Both end, but second ends later
+    #         case (WLCalCS.END_1, WLCalCS.END_7) | \
+    #                 (WLCalCS.END_2, WLCalCS.END_7) | \
+    #                 (WLCalCS.END_3, WLCalCS.END_7) | \
+    #                 (WLCalCS.END_4, WLCalCS.END_7) | \
+    #                 (WLCalCS.END_5, WLCalCS.END_7) | \
+    #                 (WLCalCS.END_6, WLCalCS.END_7) | \
+    #                 (WLCalCS.END_1, WLCalCS.END_6) | \
+    #                 (WLCalCS.END_2, WLCalCS.END_6) | \
+    #                 (WLCalCS.END_3, WLCalCS.END_6) | \
+    #                 (WLCalCS.END_4, WLCalCS.END_6) | \
+    #                 (WLCalCS.END_5, WLCalCS.END_6) | \
+    #                 (WLCalCS.END_1, WLCalCS.END_5) | \
+    #                 (WLCalCS.END_2, WLCalCS.END_5) | \
+    #                 (WLCalCS.END_3, WLCalCS.END_5) | \
+    #                 (WLCalCS.END_4, WLCalCS.END_5) | \
+    #                 (WLCalCS.END_1, WLCalCS.END_4) | \
+    #                 (WLCalCS.END_2, WLCalCS.END_4) | \
+    #                 (WLCalCS.END_3, WLCalCS.END_4) | \
+    #                 (WLCalCS.END_1, WLCalCS.END_3) | \
+    #                 (WLCalCS.END_2, WLCalCS.END_3) | \
+    #                 (WLCalCS.END_1, WLCalCS.END_2):
+    #             return other
+    #         # First starts, second ends, first starts before second ends
+    #         case (WLCalCS.START_2, WLCalCS.END_7) | \
+    #                 (WLCalCS.START_3, WLCalCS.END_7) | \
+    #                 (WLCalCS.START_3, WLCalCS.END_6) | \
+    #                 (WLCalCS.START_4, WLCalCS.END_7) | \
+    #                 (WLCalCS.START_4, WLCalCS.END_6) | \
+    #                 (WLCalCS.START_4, WLCalCS.END_5) | \
+    #                 (WLCalCS.START_5, WLCalCS.END_7) | \
+    #                 (WLCalCS.START_5, WLCalCS.END_6) | \
+    #                 (WLCalCS.START_5, WLCalCS.END_5) | \
+    #                 (WLCalCS.START_5, WLCalCS.END_4) | \
+    #                 (WLCalCS.START_6, WLCalCS.END_7) | \
+    #                 (WLCalCS.START_6, WLCalCS.END_6) | \
+    #                 (WLCalCS.START_6, WLCalCS.END_5) | \
+    #                 (WLCalCS.START_6, WLCalCS.END_4) | \
+    #                 (WLCalCS.START_6, WLCalCS.END_3) | \
+    #                 (WLCalCS.START_7, WLCalCS.END_7) | \
+    #                 (WLCalCS.START_7, WLCalCS.END_6) | \
+    #                 (WLCalCS.START_7, WLCalCS.END_5) | \
+    #                 (WLCalCS.START_7, WLCalCS.END_4) | \
+    #                 (WLCalCS.START_7, WLCalCS.END_3) | \
+    #                 (WLCalCS.START_7, WLCalCS.END_2):
+    #             return WLCalCS.FULL
+    #         # First ends, second starts, first ends after second starts
+    #         case (WLCalCS.END_7, WLCalCS.START_2) | \
+    #                 (WLCalCS.END_7, WLCalCS.START_3) | \
+    #                 (WLCalCS.END_6, WLCalCS.START_3) | \
+    #                 (WLCalCS.END_7, WLCalCS.START_4) | \
+    #                 (WLCalCS.END_6, WLCalCS.START_4) | \
+    #                 (WLCalCS.END_5, WLCalCS.START_4) | \
+    #                 (WLCalCS.END_7, WLCalCS.START_5) | \
+    #                 (WLCalCS.END_6, WLCalCS.START_5) | \
+    #                 (WLCalCS.END_5, WLCalCS.START_5) | \
+    #                 (WLCalCS.END_4, WLCalCS.START_5) | \
+    #                 (WLCalCS.END_7, WLCalCS.START_6) | \
+    #                 (WLCalCS.END_6, WLCalCS.START_6) | \
+    #                 (WLCalCS.END_5, WLCalCS.START_6) | \
+    #                 (WLCalCS.END_4, WLCalCS.START_6) | \
+    #                 (WLCalCS.END_3, WLCalCS.START_6) | \
+    #                 (WLCalCS.END_7, WLCalCS.START_7) | \
+    #                 (WLCalCS.END_6, WLCalCS.START_7) | \
+    #                 (WLCalCS.END_5, WLCalCS.START_7) | \
+    #                 (WLCalCS.END_4, WLCalCS.START_7) | \
+    #                 (WLCalCS.END_3, WLCalCS.START_7) | \
+    #                 (WLCalCS.END_2, WLCalCS.START_7):
+    #             return WLCalCS.FULL
+    #         case _:
+    #             return WLCalCS.FUZZY
+
+    pass
 
 
 class WorkLogCalendarDay(Widget):
@@ -854,42 +1232,79 @@ class WorkLogCalendarDay(Widget):
 
         width = self.size.width
         height = CALENDAR_HEIGHT
-        lines = [
-            Text(
-                " " * int(width),
-                end="",
-            )
+        lines_ranges: list[list[tuple[float, float]]] = [
+            []
             for _ in range(height)
         ]
-        for i in range(24):
-            lines[int(i * height / 24)] = Text(
-                "─" * int(width),
-                end="",
-            )
+        lines_texts: list[tuple[bool, str | None]] = [
+            (False, None)
+            for _ in range(height)
+        ]
 
         for rstart, rend, name in self._ranges:
-            rstart = max(int(rstart * height), 0)
-            rend = min(int(rend * height), height)
-            rname = " " + name
-            rname = rname[:int(width-1)] + " "
-            oname = Text(
-                rname + " " * (int(width) - len(rname)),
-                style="reverse",
-                end="",
-            )
-            for i in range(rstart, rend):
-                if i == rstart:
-                    lines[i] = oname
-                    continue
-                lines[i] = Text(
-                    "█" * int(width),
-                    end="",
-                )
+            rstart = min(max(rstart * height, 0), height)
+            rend = min(max(rend * height, 0), height)
+
+            istart = math.ceil(rstart)
+            iend = int(rend)
+
+            tstart = istart
+            moved = False
+            while tstart < height:
+                _, text = lines_texts[tstart]
+                if text is None:
+                    lines_texts[tstart] = (moved, name)
+                    break
+                tstart += 1
+                moved = True
+
+            mid_start: float | None = None
+            mid_end: float | None = None
+            if rstart % 1 != 0:
+                mid_start = rstart % 1
+            if rend % 1 != 0:
+                mid_end = rend % 1
+
+            if mid_start is not None and mid_end is not None and \
+                    int(rstart) == int(rend):
+                lines_ranges[int(rstart)].append((mid_start, mid_end))
+                continue
+
+            if mid_start is not None:
+                lines_ranges[int(rstart)].append((mid_start, 1))
+
+            if mid_end is not None:
+                lines_ranges[int(rend)].append((0, mid_end))
+
+            for i in range(istart, iend):
+                lines_ranges[i].append((0, 1))
 
         output = header
-        for line in lines:
+        for i in range(height):
             output.append("\n")
-            output.append(line)
+            state = WLCalCS.from_ranges(lines_ranges[i])
+            output.append(state.as_text())
+            style = "reverse" if state == WLCalCS.FULL else ""
+            was_moved, lname = lines_texts[i]
+            if lname is not None:
+                space = "^" if was_moved else " "
+                rname = space + lname
+                rname = rname[:int(width-2)] + " "
+                output.append(Text(
+                    rname + " " * (int(width-1) - len(rname)),
+                    style=style,
+                    end="",
+                ))
+            else:
+                output.append(Text(
+                    (
+                        "─" * int(width-1)
+                        if i in FULL_HOUR_MARKERS else
+                        " " * int(width-1)
+                    ),
+                    style=style,
+                    end="",
+                ))
 
         return output
 
@@ -917,7 +1332,11 @@ class WorkLogCalendarDay(Widget):
             for log in logs:
                 for record in log['records']:
                     start_time = datetime.fromisoformat(record['start'])
-                    end_time = datetime.fromisoformat(record['end'])
+                    end_time = (
+                        datetime.fromisoformat(record['end'])
+                        if record['end'] is not None
+                        else datetime.now()
+                    )
                     start = (start_time - since).total_seconds() / DAY_SECONDS
                     end = (end_time - since).total_seconds() / DAY_SECONDS
                     description = (
@@ -971,6 +1390,16 @@ class WorkLogCalendar(ScrollableContainer):
     ) -> None:
         self.logs_server = server
         super().__init__(**kwargs)
+
+    def on_mount(self) -> None:
+        self.call_after_refresh(
+            self.scroll_to_region,
+            Region(
+                0, CALENDAR_HEIGHT // 2,
+                1, 1,
+            ),
+            center=True,
+        )
 
     @property
     def week_end(self) -> date:
