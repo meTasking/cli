@@ -180,8 +180,9 @@ class WorkLog(Static):
             self.start_date = log_start.strftime("%Y-%m-%d")
             self.start_time = log_start.strftime("%H:%M:%S")
 
+            curr_time = datetime.now()
             log_end_str = self._log['records'][-1]['end']
-            log_end = datetime.now()
+            log_end = curr_time
 
             if log_end_str is not None:
                 log_end = datetime.fromisoformat(log_end_str)
@@ -191,7 +192,9 @@ class WorkLog(Static):
                 self.end_date = self.start_date
                 self.active = True
 
-            duration = (log_end - log_start).total_seconds()
+            log_end_real = log_end if self._log['stopped'] else curr_time
+
+            duration = (log_end_real - log_start).total_seconds()
 
             def get_activity_range(
                 record: dict[str, Any]
@@ -199,7 +202,7 @@ class WorkLog(Static):
                 start_time = datetime.fromisoformat(record['start'])
                 start = (start_time - log_start).total_seconds() / duration
                 if record['end'] is None:
-                    return (start, duration)
+                    return (start, 1)
 
                 end_time = datetime.fromisoformat(record['end'])
                 end = (end_time - log_start).total_seconds() / duration

@@ -1,4 +1,5 @@
 from enum import Enum
+import math
 
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.text import Text
@@ -14,21 +15,21 @@ class BarCS(Enum):
         if self == BarCS.EMPTY:
             return other
         elif self == BarCS.FULL:
-            return self
+            return BarCS.FULL
         elif self == BarCS.LEFT:
             if other == BarCS.RIGHT:
                 return BarCS.FULL
             elif other == BarCS.FULL:
-                return other
+                return BarCS.FULL
             else:
-                return self
+                return BarCS.LEFT
         elif self == BarCS.RIGHT:
             if other == BarCS.LEFT:
                 return BarCS.FULL
             elif other == BarCS.FULL:
-                return other
+                return BarCS.FULL
             else:
-                return self
+                return BarCS.RIGHT
         else:
             raise Exception("Unknown state")
 
@@ -63,15 +64,14 @@ class RangeBar:
             underflow = start % 1
             overflow = end % 1
 
-            start = int(start)
-            if underflow >= 0.5:
-                content[start] = content[start]\
+            start = math.ceil(start)
+            if underflow > 0 and underflow < 0.5:
+                content[start - 1] = content[start - 1]\
                     .merge(BarCS.LEFT)
-                start += 1
 
             end = int(end)
             if overflow >= 0.5:
-                content[end + 1] = content[end + 1]\
+                content[end] = content[end]\
                     .merge(BarCS.RIGHT)
 
             for i in range(start, end):
@@ -100,6 +100,14 @@ class RangeBar:
             # F -> F '━━'
 
             match (c_prev, c_curr, c_next):
+                # case (_, BarCS.EMPTY, _):
+                #     yield Text("E", style=background_style, end="")
+                # case (_, BarCS.LEFT, _):
+                #     yield Text("L", style=highlight_style, end="")
+                # case (_, BarCS.RIGHT, _):
+                #     yield Text("R", style=highlight_style, end="")
+                # case (_, BarCS.FULL, _):
+                #     yield Text("F", style=highlight_style, end="")
                 case (BarCS.EMPTY, BarCS.EMPTY, BarCS.EMPTY) | \
                         (BarCS.EMPTY, BarCS.EMPTY, BarCS.LEFT) | \
                         (BarCS.RIGHT, BarCS.EMPTY, BarCS.EMPTY) | \
