@@ -1,3 +1,4 @@
+from typing import Iterable
 from datetime import datetime, timedelta, date, time
 
 from textual import work
@@ -177,7 +178,11 @@ class WorkLogReportDay(Widget):
             f"{split_current['milliseconds']}ms"
         )
 
-    def _fetch_total(self, since: datetime, until: datetime) -> float:
+    def _fetch_total(
+        self,
+        since: datetime,
+        until: datetime
+    ) -> Iterable[float]:
         total = 0.0
 
         offset = 0
@@ -187,7 +192,7 @@ class WorkLogReportDay(Widget):
                 since=since,
                 until=until,
                 offset=offset,
-                limit=100,
+                limit=20,
             )
 
             if len(logs) == 0:
@@ -204,8 +209,8 @@ class WorkLogReportDay(Widget):
                     )
                     spent_time = end_time - start_time
                     total += spent_time.total_seconds() / HOUR_SECONDS
-
-        return total
+            yield total
+        yield total
 
     def refresh_data(self) -> None:
         self._current = None
@@ -230,7 +235,9 @@ class WorkLogReportDay(Widget):
             day_since = datetime.combine(self.day, time.min)
             day_until = datetime.combine(self.day, time.max)
 
-        current = self._fetch_total(day_since, day_until)
+        for current in self._fetch_total(day_since, day_until):
+            self._current = current
+            self.call_after_refresh(self.update_content)
 
         # if self.since is None or self.until is None:
         #     total = None
@@ -239,10 +246,7 @@ class WorkLogReportDay(Widget):
         #     month_until = datetime.combine(self.until, time.max)
         #     total = self._fetch_total(month_since, month_until)
 
-        self._current = current
         # self._total = total
-
-        self.call_after_refresh(self.update_content)
 
 
 class WorkLogReport(ScrollableContainer):

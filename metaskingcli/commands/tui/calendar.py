@@ -365,7 +365,7 @@ class WorkLogCalendarDay(Widget):
                 since=since,
                 until=until,
                 offset=offset,
-                limit=100,
+                limit=20,
             )
 
             if len(logs) == 0:
@@ -388,6 +388,8 @@ class WorkLogCalendarDay(Widget):
                     )
                     range_name = f"{log['name']}: {description}"
                     ranges.append((start, end, range_name))
+                self._ranges = ranges.copy()
+                self.call_after_refresh(partial(self.refresh, layout=True))
 
         self._ranges = ranges
         self.call_after_refresh(partial(self.refresh, layout=True))
