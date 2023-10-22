@@ -52,8 +52,8 @@ def _merge_ranges(
     return merged_ranges
 
 
-def _get_week_start(date: date) -> date:
-    return date - timedelta(days=date.weekday())
+def _get_week_start(d: date) -> date:
+    return d - timedelta(days=d.weekday())
 
 
 class WLCalCS(Enum):
@@ -228,14 +228,14 @@ class WorkLogCalendarDay(Widget):
     """
 
     logs_server: str
-    day: reactive[date] = reactive(date.today())
+    day: reactive[date | None] = reactive(None)
 
     _ranges: list[tuple[float, float, str]] = []
 
     def __init__(
         self,
         server: str,
-        day: date,
+        day: date | None = None,
         **kwargs
     ) -> None:
         self.logs_server = server
@@ -253,8 +253,11 @@ class WorkLogCalendarDay(Widget):
     def date_header(self) -> Text:
         width = self.size.width - 2
         width = max(width, 0)
+        text = (" " * int(width / 2))
+        if self.day is not None:
+            text += self.day.strftime("%d")
         return Text(
-            self.day.strftime((" " * int(width / 2)) + "%d"),
+            text,
             style="bold",
             end=""
         )
@@ -340,8 +343,11 @@ class WorkLogCalendarDay(Widget):
 
         return output
 
-    @work(thread=True)
+    @work(thread=True, exclusive=True)
     def refresh_data(self) -> None:
+        if self.day is None:
+            return
+
         ranges = []
 
         since = datetime.combine(self.day, time.min)
@@ -459,6 +465,7 @@ class WorkLogCalendar(ScrollableContainer):
         super().__init__(**kwargs)
 
     def on_mount(self) -> None:
+        self.update_content()
         self.call_after_refresh(
             self.scroll_to_region,
             Region(
@@ -477,6 +484,9 @@ class WorkLogCalendar(ScrollableContainer):
             # This is called during initialization which is bad
             return
 
+        self.update_content()
+
+    def update_content(self) -> None:
         heading: Static = self.query_one(
             ".calendar-date-heading"
         )  # type: ignore
@@ -508,8 +518,6 @@ class WorkLogCalendar(ScrollableContainer):
                 classes="calendar-button-previous",
             )
             yield Static(
-                f"{self.week_start.strftime('%Y-%m-%d')} - " +
-                f"{self.week_end.strftime('%Y-%m-%d')}",
                 classes="calendar-date-heading",
             )
             yield Button(
@@ -523,7 +531,6 @@ class WorkLogCalendar(ScrollableContainer):
             for i in range(7):
                 yield WorkLogCalendarDay(
                     self.logs_server,
-                    self.week_start + timedelta(days=i),
                     classes=(
                         "container-calendar-day " +
                         "container-calendar-day-" + str(i)

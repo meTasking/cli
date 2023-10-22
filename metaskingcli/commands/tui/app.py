@@ -21,6 +21,7 @@ from metaskingcli.api.log import (
 from .scrollable_auto_load import AutoLoadScrollableContainer
 from .work_log_list import LogList
 from .calendar import WorkLogCalendar
+from .report import WorkLogReport
 
 
 class MeTaskingTuiCommands(Provider):
@@ -132,6 +133,10 @@ class MeTaskingTui(App):
         display: none;
     }
 
+    #container-report {
+        display: none;
+    }
+
     .tab-selected {
         display: block !important;
     }
@@ -178,14 +183,21 @@ class MeTaskingTui(App):
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
         if event.tab is None:
+            self.query_one("#container-report").remove_class("tab-selected")
             self.query_one("#container-calendar").remove_class("tab-selected")
             self.query_one("#container-logs").remove_class("tab-selected")
         elif event.tab.id == "tab-logs":
+            self.query_one("#container-report").remove_class("tab-selected")
             self.query_one("#container-calendar").remove_class("tab-selected")
             self.query_one("#container-logs").add_class("tab-selected")
         elif event.tab.id == "tab-calendar":
-            self.query_one("#container-logs").remove_class("tab-selected")
+            self.query_one("#container-report").remove_class("tab-selected")
             self.query_one("#container-calendar").add_class("tab-selected")
+            self.query_one("#container-logs").remove_class("tab-selected")
+        elif event.tab.id == "tab-report":
+            self.query_one("#container-report").add_class("tab-selected")
+            self.query_one("#container-calendar").remove_class("tab-selected")
+            self.query_one("#container-logs").remove_class("tab-selected")
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -193,6 +205,7 @@ class MeTaskingTui(App):
         yield Tabs(
             Tab("Logs", id="tab-logs"),
             Tab("Calendar", id="tab-calendar"),
+            Tab("Report", id="tab-report"),
         )
 
         with Container(
@@ -252,6 +265,12 @@ class MeTaskingTui(App):
         yield WorkLogCalendar(
             server=self._server,
             id="container-calendar",
+            # classes="container-top",
+        )
+
+        yield WorkLogReport(
+            server=self._server,
+            id="container-report",
             # classes="container-top",
         )
 
