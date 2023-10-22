@@ -109,9 +109,13 @@ class MeTaskingTuiCommands(Provider):
 
 class MeTaskingTui(App):
 
+    TITLE = "MeTasking TUI"
+
     CSS = """
-    Tabs {
+    #header {
         dock: top;
+        height: auto;
+        width: 100%;
     }
 
     .heading {
@@ -200,13 +204,15 @@ class MeTaskingTui(App):
             self.query_one("#container-logs").remove_class("tab-selected")
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        with Container(id="header"):
+            yield Header(show_clock=True)
+            yield Tabs(
+                Tab("Logs", id="tab-logs"),
+                Tab("Calendar", id="tab-calendar"),
+                Tab("Report", id="tab-report"),
+            )
+
         yield Footer()
-        yield Tabs(
-            Tab("Logs", id="tab-logs"),
-            Tab("Calendar", id="tab-calendar"),
-            Tab("Report", id="tab-report"),
-        )
 
         with Container(
             id="container-logs",
@@ -280,6 +286,8 @@ class MeTaskingTui(App):
             log_list.reload_logs()
         for calendar in self.query(WorkLogCalendar).results():
             calendar.refresh_data()
+        for report in self.query(WorkLogReport).results():
+            report.refresh_data()
 
     @work(thread=True)
     def action_delete(self) -> None:

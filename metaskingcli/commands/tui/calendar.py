@@ -243,12 +243,12 @@ class WorkLogCalendarDay(Widget):
         self.day = day
 
     def on_mount(self) -> None:
-        self.refresh_data()
+        self._refresh_data()
 
     def watch_day(self, new_value: date) -> None:
         self._ranges = []
         self.refresh(layout=True)
-        self.refresh_data()
+        self._refresh_data()
 
     def date_header(self) -> Text:
         width = self.size.width - 2
@@ -343,8 +343,13 @@ class WorkLogCalendarDay(Widget):
 
         return output
 
-    @work(thread=True, exclusive=True)
     def refresh_data(self) -> None:
+        self._ranges = []
+        self.refresh(layout=True)
+        self._refresh_data()
+
+    @work(thread=True, exclusive=True)
+    def _refresh_data(self) -> None:
         if self.day is None:
             return
 

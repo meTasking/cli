@@ -74,7 +74,7 @@ class WorkLogReportDay(Widget):
         self.day = day
 
     def on_mount(self) -> None:
-        self.refresh_data()
+        self._refresh_data()
 
     def watch_total(self, old_value: bool, new_value: bool) -> None:
         if old_value == new_value:
@@ -83,7 +83,7 @@ class WorkLogReportDay(Widget):
 
         self._current = None
         self.update_content()
-        self.refresh_data()
+        self._refresh_data()
 
     def watch_day(self, old_value: date, new_value: date) -> None:
         if old_value == new_value:
@@ -92,7 +92,7 @@ class WorkLogReportDay(Widget):
 
         self._current = None
         self.update_content()
-        self.refresh_data()
+        self._refresh_data()
 
     # def watch_since(self, old_value: date, new_value: float) -> None:
     #     if old_value == new_value:
@@ -143,15 +143,15 @@ class WorkLogReportDay(Widget):
         else:
             day.update(self.day.strftime("%d."))
 
-        if self.total:
-            target_time = 160.0
-            max_time = 672.0
-        elif self.day is not None:
-            target_time = 8.0
-            max_time = 24.0
-        else:
+        if self._current is None:
             target_time = None
             max_time = None
+        elif self.total:
+            target_time = 160.0
+            max_time = 672.0
+        else:
+            target_time = 8.0
+            max_time = 24.0
 
         progress: ProgressBar = self.query_one(".day-progress")  # type: ignore
         progress.update(
@@ -207,8 +207,13 @@ class WorkLogReportDay(Widget):
 
         return total
 
-    @work(thread=True, exclusive=True)
     def refresh_data(self) -> None:
+        self._current = None
+        self.update_content()
+        self._refresh_data()
+
+    @work(thread=True, exclusive=True)
+    def _refresh_data(self) -> None:
         if self.day is None:
             return
 
@@ -378,3 +383,7 @@ class WorkLogReport(ScrollableContainer):
                 total=True,
                 classes="container-report-day container-report-day-total",
             )
+
+    def refresh_data(self) -> None:
+        for day_widget in self.query(WorkLogReportDay).results():
+            day_widget.refresh_data()
