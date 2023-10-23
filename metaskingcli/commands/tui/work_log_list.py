@@ -7,7 +7,7 @@ from textual.widgets import Static
 
 from metaskingcli.api.log import (
     get_active,
-    list_all,
+    list_page,
 )
 
 from .work_log import WorkLog
@@ -62,11 +62,11 @@ class LogList(ScrollableContainer):
 
     def _add_logs(
         self,
-        offset: int,
+        at_offset: int,
         reached_end: bool,
         logs: list[dict[str, Any]]
     ) -> None:
-        if offset != self.logs_offset:
+        if at_offset != self.logs_offset:
             # Race condition - ignore
             return
 
@@ -96,6 +96,9 @@ class LogList(ScrollableContainer):
         if len(widgets_list) != 0:
             self.remove_class("container-logs-wrapper-empty")
 
+        # Check if enough logs were loaded
+        self.call_after_refresh(self.check_load_more_logs)
+
     @work(exclusive=True, thread=True)
     def load_more_logs(self) -> None:
         reached_end = self.logs_reached_end
@@ -104,6 +107,8 @@ class LogList(ScrollableContainer):
         if reached_end:
             return
 
+        limit = 5
+
         if self.logs_only_active:
             logs = []
             active_log = get_active(self.logs_server)
@@ -111,13 +116,13 @@ class LogList(ScrollableContainer):
                 logs.append(active_log)
             reached_end = True
         else:
-            logs = list_all(
+            logs = list_page(
                 self.logs_server,
                 offset=self.logs_offset,
-                limit=20,
+                limit=limit,
                 **self.logs_filters
             )
-            if len(logs) < 20:
+            if len(logs) < limit:
                 reached_end = True
 
         self.call_after_refresh(self._add_logs, offset, reached_end, logs)
@@ -126,9 +131,20 @@ class LogList(ScrollableContainer):
         yield Static("No logs", classes="no-logs")
         yield Container(classes="container-logs")
 
+    @property
+    def scroll_y_edge(self) -> float:
+        if self.max_scroll_y > 5:
+            return self.max_scroll_y - 5
+        return self.max_scroll_y
+
+    def check_load_more_logs(self) -> None:
+        edge = self.scroll_y_edge
+        if self.scroll_y > edge:
+            self.load_more_logs()
+
     def watch_scroll_y(self, old_value: float, new_value: float) -> None:
-        edge = self.max_scroll_y - 5
+        edge = self.scroll_y_edge
         if old_value <= edge and new_value > edge:
-            self.call_after_refresh(self.load_more_logs)
+            self.load_more_logs()
 
         return super().watch_scroll_y(old_value, new_value)

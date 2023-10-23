@@ -185,31 +185,22 @@ class WorkLogReportDay(Widget):
     ) -> Iterable[float]:
         total = 0.0
 
-        offset = 0
-        while True:
-            logs = list_all(
-                self.logs_server,
-                since=since,
-                until=until,
-                offset=offset,
-                limit=20,
-            )
-
-            if len(logs) == 0:
-                break
-            offset += len(logs)
-
-            for log in logs:
-                for record in log['records']:
-                    start_time = datetime.fromisoformat(record['start'])
-                    end_time = (
-                        datetime.fromisoformat(record['end'])
-                        if record['end'] is not None
-                        else datetime.now()
-                    )
-                    spent_time = end_time - start_time
-                    total += spent_time.total_seconds() / HOUR_SECONDS
-            yield total
+        for log in list_all(
+            self.logs_server,
+            since=since,
+            until=until,
+            page_limit=20,
+        ):
+            for record in log['records']:
+                start_time = datetime.fromisoformat(record['start'])
+                end_time = (
+                    datetime.fromisoformat(record['end'])
+                    if record['end'] is not None
+                    else datetime.now()
+                )
+                spent_time = end_time - start_time
+                total += spent_time.total_seconds() / HOUR_SECONDS
+                yield total
         yield total
 
     def refresh_data(self) -> None:

@@ -358,38 +358,29 @@ class WorkLogCalendarDay(Widget):
         since = datetime.combine(self.day, time.min)
         until = datetime.combine(self.day, time.max)
 
-        offset = 0
-        while True:
-            logs = list_all(
-                self.logs_server,
-                since=since,
-                until=until,
-                offset=offset,
-                limit=20,
-            )
-
-            if len(logs) == 0:
-                break
-            offset += len(logs)
-
-            for log in logs:
-                for record in log['records']:
-                    start_time = datetime.fromisoformat(record['start'])
-                    end_time = (
-                        datetime.fromisoformat(record['end'])
-                        if record['end'] is not None
-                        else datetime.now()
-                    )
-                    start = (start_time - since).total_seconds() / DAY_SECONDS
-                    end = (end_time - since).total_seconds() / DAY_SECONDS
-                    description = (
-                        "" if log['description'] is None
-                        else log['description']
-                    )
-                    range_name = f"{log['name']}: {description}"
-                    ranges.append((start, end, range_name))
-                self._ranges = ranges.copy()
-                self.call_after_refresh(partial(self.refresh, layout=True))
+        for log in list_all(
+            self.logs_server,
+            since=since,
+            until=until,
+            page_limit=20,
+        ):
+            for record in log['records']:
+                start_time = datetime.fromisoformat(record['start'])
+                end_time = (
+                    datetime.fromisoformat(record['end'])
+                    if record['end'] is not None
+                    else datetime.now()
+                )
+                start = (start_time - since).total_seconds() / DAY_SECONDS
+                end = (end_time - since).total_seconds() / DAY_SECONDS
+                description = (
+                    "" if log['description'] is None
+                    else log['description']
+                )
+                range_name = f"{log['name']}: {description}"
+                ranges.append((start, end, range_name))
+            self._ranges = ranges.copy()
+            self.call_after_refresh(partial(self.refresh, layout=True))
 
         self._ranges = ranges
         self.call_after_refresh(partial(self.refresh, layout=True))

@@ -18,35 +18,26 @@ def execute(args: CliArgs) -> int:
 
     total_duration = 0.0
 
-    offset = 0
-    while True:
-        logs = list_all(
-            args.server,
-            offset=offset,
-            flags=args.report.flags,
-            since=args.report.since,
-            until=args.report.until,
-        )
+    for log in list_all(
+        args.server,
+        flags=args.report.flags,
+        since=args.report.since,
+        until=args.report.until,
+    ):
+        for record in log['records']:
+            if record['end'] is None:
+                continue
 
-        if len(logs) == 0:
-            break
-        offset += len(logs)
-
-        for log in logs:
-            for record in log['records']:
-                if record['end'] is None:
-                    continue
-
-                start = datetime.fromisoformat(record['start'])
-                end = datetime.fromisoformat(record['end'])
-                start_date = start.date()
-                day_duration = 0.0
-                if start_date in dates:
-                    day_duration = dates[start_date]
-                record_duration = (end - start).total_seconds() / 3600.0
-                total_duration += record_duration
-                day_duration += record_duration
-                dates[start_date] = day_duration
+            start = datetime.fromisoformat(record['start'])
+            end = datetime.fromisoformat(record['end'])
+            start_date = start.date()
+            day_duration = 0.0
+            if start_date in dates:
+                day_duration = dates[start_date]
+            record_duration = (end - start).total_seconds() / 3600.0
+            total_duration += record_duration
+            day_duration += record_duration
+            dates[start_date] = day_duration
 
     # This might be a bit overkill, but it's a good way to display the data
     # in a nice way. Using progress bars to display graph of time spent in

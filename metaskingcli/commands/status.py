@@ -18,20 +18,14 @@ def execute(args: CliArgs) -> int:
         print("- None")
 
     print("All non-stopped logs:")
-    offset = 0
-    logs = list_all(args.server, stopped=False, offset=offset)
-    while len(logs) != 0:
-        for log in logs:
-            time_range = ""
-            if len(log['records']) > 0:
-                time_range = f" ({log['records'][0]['start']} " + \
-                    f"- {log['records'][-1]['end']})"
-            print(
-                f"{log['id']}{time_range}: " +
-                f"{log['name']}: {log['description']}"
-            )
-
-        offset += len(logs)
-        logs = list_all(args.server, stopped=False, offset=offset)
+    for log in list_all(args.server, stopped=False):
+        time_range = ""
+        if len(log['records']) > 0:
+            time_range = f" ({log['records'][0]['start']} " + \
+                f"- {log['records'][-1]['end']})"
+        print(
+            f"{log['id']}{time_range}: " +
+            f"{log['name']}: {log['description']}"
+        )
 
     return 0

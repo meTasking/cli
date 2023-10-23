@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, Generator
 import datetime
 import requests
 
@@ -9,6 +9,38 @@ API_VERSION = "v1"
 
 
 def list_all(
+    server: str,
+    category_id: int | None = None,
+    task_id: int | None = None,
+    stopped: bool | None = None,
+    flags: list[str] | None = None,
+    order: str | None = None,
+    since: datetime.datetime | None = None,
+    until: datetime.datetime | None = None,
+    start_offset: int = 0,
+    page_limit: int = 100,
+) -> Generator[dict, None, None]:
+    offset = start_offset
+    while True:
+        logs = list_page(
+            server,
+            offset=offset,
+            limit=page_limit,
+            category_id=category_id,
+            task_id=task_id,
+            stopped=stopped,
+            flags=flags,
+            order=order,
+            since=since,
+            until=until,
+        )
+        if len(logs) == 0:
+            break
+        yield from logs
+        offset += len(logs)
+
+
+def list_page(
     server: str,
     offset: int = 0,
     limit: int = 100,
