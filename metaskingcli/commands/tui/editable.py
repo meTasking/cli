@@ -114,6 +114,44 @@ class EditableText(Static, can_focus=True):
 
         self.cursor += 1
 
+    def key_ctrl_left(self) -> None:
+        if self.text is None:
+            return
+
+        if self.cursor == 0:
+            return
+
+        text = self.text
+        if text[self.cursor - 1] == " ":
+            self.cursor -= 1
+            return
+
+        for i in range(self.cursor - 1, -1, -1):
+            if text[i] == " ":
+                self.cursor = i + 1
+                return
+
+        self.cursor = 0
+
+    def key_ctrl_right(self) -> None:
+        if self.text is None:
+            return
+
+        if self.cursor >= len(self.text):
+            return
+
+        text = self.text
+        if text[self.cursor] == " ":
+            self.cursor += 1
+            return
+
+        for i in range(self.cursor, len(text)):
+            if text[i] == " ":
+                self.cursor = i
+                return
+
+        self.cursor = len(text)
+
     def on_key(self, event: Key) -> None:
         if event.character is None or not event.is_printable:
             return
