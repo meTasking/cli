@@ -21,19 +21,24 @@ def _get_month_start(d: date) -> date:
     return date(d.year, d.month, 1)
 
 
-class WorkLogReportDay(Widget):
+class WorkLogReportDay(Horizontal):
 
     DEFAULT_CSS = """
     WorkLogReportDay {
         height: 1;
         width: 100%;
-        color: darkcyan;
     }
 
-    WorkLogReportDay .day-header {
-        dock: left;
+    WorkLogReportDay .day-name {
         width: 4;
-        text-align: left;
+    }
+
+    WorkLogReportDay .day-time {
+        width: 23;
+        padding-left: 1;
+        padding-right: 1;
+        border-left: solid darkgrey;
+        border-right: solid darkgrey;
     }
 
     WorkLogReportDay .day-progress, WorkLogReportDay .day-progress-limit {
@@ -44,12 +49,6 @@ class WorkLogReportDay(Widget):
 
     WorkLogReportDay .day-progress *, WorkLogReportDay .day-progress-limit * {
         width: 100%;
-    }
-
-    WorkLogReportDay .day-time {
-        dock: right;
-        width: 20;
-        text-align: right;
     }
     """
 
@@ -113,30 +112,29 @@ class WorkLogReportDay(Widget):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            classes="day-header",
+            classes="day-name",
         )
-
-        with Horizontal():
-            yield ProgressBar(
-                show_bar=True,
-                show_percentage=False,
-                show_eta=False,
-                classes="day-progress",
-            )
-
-            yield ProgressBar(
-                show_bar=True,
-                show_percentage=False,
-                show_eta=False,
-                classes="day-progress-limit",
-            )
 
         yield Static(
             classes="day-time",
         )
 
+        yield ProgressBar(
+            show_bar=True,
+            show_percentage=False,
+            show_eta=False,
+            classes="day-progress",
+        )
+
+        yield ProgressBar(
+            show_bar=True,
+            show_percentage=False,
+            show_eta=False,
+            classes="day-progress-limit",
+        )
+
     def update_content(self) -> None:
-        day: Static = self.query_one(".day-header")  # type: ignore
+        day: Static = self.query_one(".day-name")  # type: ignore
         if self.total:
             day.update("SUM")
         elif self.day is None:

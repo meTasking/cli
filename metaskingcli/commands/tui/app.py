@@ -346,17 +346,18 @@ class MeTaskingTui(App):
             self.query_one("#container-stopped-logs-inner")  # type: ignore
         log_list.load_more_logs()
 
-    async def scroll_end_callback(self) -> None:
+    def scroll_end_callback(self) -> None:
         """A callback called when the scroll reaches the end."""
         # Load more stopped logs as long as the scroll is on the edge
         log_list: LogList = \
             self.query_one("#container-stopped-logs-inner")  # type: ignore
-        await log_list.load_more_logs().wait()
+        # await log_list.load_more_logs().wait()
+        log_list.load_more_logs()
 
-        scroll_container = self.query_one(AutoLoadScrollableContainer)
-        if scroll_container.check_on_the_edge() and \
-                not log_list.logs_reached_end:
-            self.call_after_refresh(self.scroll_end_callback)
+        # scroll_container = self.query_one(AutoLoadScrollableContainer)
+        # if scroll_container.check_on_the_edge() and \
+        #         not log_list.logs_reached_end:
+        #     self.call_after_refresh(self.scroll_end_callback)
 
 
 def init_app(server: str, read_only_mode: bool) -> MeTaskingTui:
