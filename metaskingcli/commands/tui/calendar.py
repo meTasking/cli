@@ -371,6 +371,15 @@ class WorkLogCalendarDay(Widget):
                     if record['end'] is not None
                     else datetime.now()
                 )
+
+                if start_time > until or end_time < since:
+                    continue
+
+                if start_time < since:
+                    start_time = since
+                if end_time > until:
+                    end_time = until
+
                 start = (start_time - since).total_seconds() / DAY_SECONDS
                 end = (end_time - since).total_seconds() / DAY_SECONDS
                 description = (

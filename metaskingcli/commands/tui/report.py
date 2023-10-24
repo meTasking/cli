@@ -196,6 +196,15 @@ class WorkLogReportDay(Horizontal):
                     if record['end'] is not None
                     else datetime.now()
                 )
+
+                if start_time > until or end_time < since:
+                    continue
+
+                if start_time < since:
+                    start_time = since
+                if end_time > until:
+                    end_time = until
+
                 spent_time = end_time - start_time
                 total += spent_time.total_seconds() / HOUR_SECONDS
                 yield total
