@@ -3,6 +3,7 @@ from typing import Any, Callable
 from textual.events import Key
 from textual.reactive import reactive
 from textual.widgets import Static
+from rich.text import Text
 
 
 class EditableText(Static, can_focus=True):
@@ -17,6 +18,7 @@ class EditableText(Static, can_focus=True):
     """
 
     text: reactive[str | None] = reactive(None)
+    saved_text: reactive[str | None] = reactive(None)
     cursor:  reactive[int] = reactive(0)
     fallback_text: str
     save_callback: Callable[[str | None], Any] | None = None
@@ -32,6 +34,7 @@ class EditableText(Static, can_focus=True):
         self.save_callback = save_callback
         super().__init__(self.resolve_text(text), **kwargs)
         self.text = text
+        self.saved_text = text
         self.cursor = len(self.text or "")
 
     def resolve_text(self, text: str | None) -> str:
@@ -42,15 +45,35 @@ class EditableText(Static, can_focus=True):
                 return self.fallback_text
         return text
 
-    def add_cursor(self, text: str) -> str:
+    def add_cursor(self, text: Text) -> Text:
         if self.has_focus:
-            return text[:self.cursor] + "|" + text[self.cursor:]
+            return text[:self.cursor] + Text("|") + text[self.cursor:]
         return text
 
     def update_text(self) -> None:
-        self.update(self.add_cursor(self.resolve_text(self.text)))
+        saved_text = self.saved_text or ""
+        final_text = self.resolve_text(self.text)
+        differs = self.saved_text != self.text
+
+        if differs and self.text is not None:
+            enriched_text = Text()
+            for i, c in enumerate(final_text):
+                t = Text(c)
+                if i >= len(saved_text) or c != saved_text[i]:
+                    t.stylize("bold")
+                enriched_text.append(t)
+        else:
+            enriched_text = Text(final_text)
+
+        if differs:
+            enriched_text.append(Text("*", style="red"))
+
+        self.update(self.add_cursor(enriched_text))
 
     def watch_text(self, new_value: str | None) -> None:
+        self.call_after_refresh(self.update_text)
+
+    def watch_saved_text(self, new_value: str | None) -> None:
         self.call_after_refresh(self.update_text)
 
     def watch_cursor(self, new_value: int) -> None:
@@ -65,6 +88,7 @@ class EditableText(Static, can_focus=True):
     def key_enter(self) -> None:
         if self.save_callback is not None:
             self.save_callback(self.text)
+        self.saved_text = self.text
         self.blur()
 
     def key_escape(self) -> None:
