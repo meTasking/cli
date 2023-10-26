@@ -16,16 +16,31 @@ from metaskingcli.api.log import (
     list_all,
 )
 
+DARK_BACKGROUND_FALLBACK = "grey27"
+DARK_BACKGROUND_OPTIONS = [
+    "rgb(0,45,112)",
+    "rgb(22,90,90)",
+    "rgb(0,97,60)",
+    "rgb(72,72,0)",
+    "rgb(97,19,0)",
+    "rgb(56,0,112)",
+]
+
+
 DAY_SECONDS = 24 * 60 * 60
 CALENDAR_HEIGHT = 96
 FULL_HOUR_MARKERS = {
     int(i * CALENDAR_HEIGHT / 24): i for i in range(24)
 }
+# FULL_HOUR_MID_MARKERS = {
+#     int(i * CALENDAR_HEIGHT / 24) + CALENDAR_HEIGHT / 24 / 2: i
+#     for i in range(24)
+# }
 
 
 def _merge_ranges(
-    ranges: list[tuple[float, float]],
-) -> list[tuple[float, float]]:
+    ranges: list[tuple[float, float, str]],
+) -> list[tuple[float, float, str]]:
     """Merge overlapping ranges."""
 
     if len(ranges) == 0:
@@ -36,18 +51,20 @@ def _merge_ranges(
     i = 0
     merged_ranges = []
     while i < len(ranges):
-        start, end = ranges[i]
+        start, end, color = ranges[i]
         i += 1
 
         while i < len(ranges):
-            next_start, next_end = ranges[i]
+            next_start, next_end, next_color = ranges[i]
             if next_start <= end:
                 end = max(end, next_end)
+                if color != next_color:
+                    color = DARK_BACKGROUND_FALLBACK
                 ranges.pop(i)
             else:
                 break
 
-        merged_ranges.append((start, end))
+        merged_ranges.append((start, end, color))
 
     return merged_ranges
 
@@ -118,112 +135,112 @@ class WLCalCS(Enum):
 
     @staticmethod
     def from_ranges(
-        ranges: list[tuple[float, float]],
-    ) -> "WLCalCS":
+        ranges: list[tuple[float, float, str]],
+    ) -> tuple["WLCalCS", str]:
         ranges = _merge_ranges(ranges)
 
         if len(ranges) == 0:
-            return WLCalCS.EMPTY
+            return WLCalCS.EMPTY, DARK_BACKGROUND_FALLBACK
 
         if len(ranges) != 1:
-            return WLCalCS.FUZZY
+            return WLCalCS.FUZZY, DARK_BACKGROUND_FALLBACK
 
         half_step = 1/16
 
-        start, end = ranges[0]
+        start, end, color = ranges[0]
         if start < half_step and end >= 1 - half_step:
-            return WLCalCS.FULL
+            return WLCalCS.FULL, color
 
         if start < half_step:
             if end >= WLCalCS.END_7.range_position() - half_step:
-                return WLCalCS.END_7
+                return WLCalCS.END_7, color
             if end >= WLCalCS.END_6.range_position() - half_step:
-                return WLCalCS.END_6
+                return WLCalCS.END_6, color
             if end >= WLCalCS.END_5.range_position() - half_step:
-                return WLCalCS.END_5
+                return WLCalCS.END_5, color
             if end >= WLCalCS.END_4.range_position() - half_step:
-                return WLCalCS.END_4
+                return WLCalCS.END_4, color
             if end >= WLCalCS.END_3.range_position() - half_step:
-                return WLCalCS.END_3
+                return WLCalCS.END_3, color
             if end >= WLCalCS.END_2.range_position() - half_step:
-                return WLCalCS.END_2
+                return WLCalCS.END_2, color
             if end >= WLCalCS.END_1.range_position() - half_step:
-                return WLCalCS.END_1
-            return WLCalCS.EMPTY
+                return WLCalCS.END_1, color
+            return WLCalCS.EMPTY, color
 
         if end >= 1 - half_step:
             if start < WLCalCS.START_7.range_position() + half_step:
-                return WLCalCS.START_7
+                return WLCalCS.START_7, color
             if start < WLCalCS.START_6.range_position() + half_step:
-                return WLCalCS.START_6
+                return WLCalCS.START_6, color
             if start < WLCalCS.START_5.range_position() + half_step:
-                return WLCalCS.START_5
+                return WLCalCS.START_5, color
             if start < WLCalCS.START_4.range_position() + half_step:
-                return WLCalCS.START_4
+                return WLCalCS.START_4, color
             if start < WLCalCS.START_3.range_position() + half_step:
-                return WLCalCS.START_3
+                return WLCalCS.START_3, color
             if start < WLCalCS.START_2.range_position() + half_step:
-                return WLCalCS.START_2
+                return WLCalCS.START_2, color
             if start < WLCalCS.START_1.range_position() + half_step:
-                return WLCalCS.START_1
-            return WLCalCS.EMPTY
+                return WLCalCS.START_1, color
+            return WLCalCS.EMPTY, color
 
         if start >= half_step and \
                 start < WLCalCS.START_4.range_position() + half_step and \
                 end >= WLCalCS.END_4.range_position() - half_step and \
                 end < 1 - half_step:
-            return WLCalCS.MIDDLE
+            return WLCalCS.MIDDLE, color
 
-        return WLCalCS.FUZZY
+        return WLCalCS.FUZZY, color
 
-    def as_text(self) -> Text:
+    def as_text(self, color: str) -> Text:
         match self:
             case WLCalCS.EMPTY:
-                return Text(" ", end="")
+                return Text(" ", style=color, end="")
             case WLCalCS.FULL:
-                return Text("█", end="")
+                return Text("█", style=color, end="")
             case WLCalCS.END_1:
-                return Text("▔", end="")
+                return Text("▔", style=color, end="")
             case WLCalCS.END_2:
-                return Text("▂", style="reverse", end="")
+                return Text("▂", style=color + " reverse", end="")
             case WLCalCS.END_3:
-                return Text("▄", style="reverse", end="")
+                return Text("▄", style=color + " reverse", end="")
             case WLCalCS.END_4:
-                return Text("▀", end="")
+                return Text("▀", style=color, end="")
             case WLCalCS.END_5:
-                return Text("▅", style="reverse", end="")
+                return Text("▅", style=color + " reverse", end="")
             case WLCalCS.END_6:
-                return Text("▆", style="reverse", end="")
+                return Text("▆", style=color + " reverse", end="")
             case WLCalCS.END_7:
-                return Text("▇", style="reverse", end="")
+                return Text("▇", style=color + " reverse", end="")
             case WLCalCS.START_1:
-                return Text("▁", end="")
+                return Text("▁", style=color, end="")
             case WLCalCS.START_2:
-                return Text("▂", end="")
+                return Text("▂", style=color, end="")
             case WLCalCS.START_3:
-                return Text("▃", end="")
+                return Text("▃", style=color, end="")
             case WLCalCS.START_4:
-                return Text("▄", end="")
+                return Text("▄", style=color, end="")
             case WLCalCS.START_5:
-                return Text("▅", end="")
+                return Text("▅", style=color, end="")
             case WLCalCS.START_6:
-                return Text("▆", end="")
+                return Text("▆", style=color, end="")
             case WLCalCS.START_7:
-                return Text("▇", end="")
+                return Text("▇", style=color, end="")
             case WLCalCS.MIDDLE:
-                return Text("━", end="")
+                return Text("━", style=color, end="")
             case WLCalCS.FUZZY:
-                return Text("░", end="")
+                return Text("░", style=color, end="")
 
 
 class WorkLogCalendarDay(Widget):
 
     DEFAULT_CSS = """
     WorkLogCalendarDay {
-        border: solid cyan;
+        border: solid rgb(158,158,158);
         height: """ + str(CALENDAR_HEIGHT+2) + """;
         width: 1fr;
-        color: darkcyan;
+        color: rgb(178,178,178);
     }
     """
 
@@ -267,16 +284,19 @@ class WorkLogCalendarDay(Widget):
 
         width = self.size.width
         height = CALENDAR_HEIGHT
-        lines_ranges: list[list[tuple[float, float]]] = [
+        lines_ranges: list[list[tuple[float, float, str]]] = [
             []
             for _ in range(height)
         ]
-        lines_texts: list[tuple[bool, str | None]] = [
-            (False, None)
+        lines_texts: list[tuple[bool, str | None, str]] = [
+            (False, None, "")
             for _ in range(height)
         ]
 
         for rstart, rend, name in self._ranges:
+            color_index = hash(name) % len(DARK_BACKGROUND_OPTIONS)
+            color = DARK_BACKGROUND_OPTIONS[color_index]
+
             rstart = min(max(rstart * height, 0), height)
             rend = min(max(rend * height, 0), height)
 
@@ -286,9 +306,9 @@ class WorkLogCalendarDay(Widget):
             tstart = istart
             moved = False
             while tstart < height:
-                _, text = lines_texts[tstart]
+                _, text, _ = lines_texts[tstart]
                 if text is None:
-                    lines_texts[tstart] = (moved, name)
+                    lines_texts[tstart] = (moved, name, color)
                     break
                 tstart += 1
                 moved = True
@@ -302,31 +322,41 @@ class WorkLogCalendarDay(Widget):
 
             if mid_start is not None and mid_end is not None and \
                     int(rstart) == int(rend):
-                lines_ranges[int(rstart)].append((mid_start, mid_end))
+                lines_ranges[int(rstart)].append((mid_start, mid_end, color))
                 continue
 
             if mid_start is not None:
-                lines_ranges[int(rstart)].append((mid_start, 1))
+                lines_ranges[int(rstart)].append((mid_start, 1, color))
 
             if mid_end is not None:
-                lines_ranges[int(rend)].append((0, mid_end))
+                lines_ranges[int(rend)].append((0, mid_end, color))
 
             for i in range(istart, iend):
-                lines_ranges[i].append((0, 1))
+                lines_ranges[i].append((0, 1, color))
 
-        output = header
+        output = Text()
+        output.append(header)
         for i in range(height):
             output.append("\n")
-            state = WLCalCS.from_ranges(lines_ranges[i])
-            output.append(state.as_text())
-            style = "reverse" if state == WLCalCS.FULL else ""
-            was_moved, lname = lines_texts[i]
+            state, color = WLCalCS.from_ranges(lines_ranges[i])
+            output.append(state.as_text(color))
+            style = (
+                "on " + color
+                if state == WLCalCS.FULL else
+                ""
+            )
+            was_moved, lname, lcolor = lines_texts[i]
             if lname is not None:
-                space = "^" if was_moved else " "
-                rname = space + lname
-                rname = rname[:int(width-2)] + " "
+                space = "^" if was_moved else "="
+                prefix_style = "on " + lcolor
                 output.append(Text(
-                    rname + " " * (int(width-1) - len(rname)),
+                    space,
+                    style=prefix_style,
+                    end="",
+                ))
+                rname = lname[:int(width-3)] + " "
+                output.append(Text(
+                    rname + " " * (int(width-2) - len(rname)),
                     style=style,
                     end="",
                 ))
@@ -399,10 +429,11 @@ class WorkLogCalendarHours(Widget):
 
     DEFAULT_CSS = """
     WorkLogCalendarHours {
-        border-top: solid cyan;
-        border-bottom: solid cyan;
+        border: solid rgb(158,158,158);
+        padding-left: 1;
+        padding-right: 1;
         height: """ + str(CALENDAR_HEIGHT+2) + """;
-        width: 3;
+        width: 6;
     }
     """
 
