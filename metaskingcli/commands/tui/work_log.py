@@ -288,11 +288,6 @@ class WorkLog(Static):
             )
 
         with Container(classes="log-middle"):
-            yield Static(
-                RangeBar(self.activity_ranges),
-                classes="log-visualization"
-            )
-
             date_str = self.start_date
             if self.start_date != self.end_date:
                 date_str += " - " + self.end_date
@@ -306,6 +301,11 @@ class WorkLog(Static):
                 fallback_text="No description",
                 save_callback=self.save_description,
                 classes="log-description"
+            )
+
+            yield Static(
+                RangeBar(self.activity_ranges),
+                classes="log-visualization"
             )
 
         with Horizontal(classes="log-buttons"):
