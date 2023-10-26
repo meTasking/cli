@@ -99,8 +99,8 @@ class LogList(ScrollableContainer):
         # Check if enough logs were loaded
         self.call_after_refresh(self.check_load_more_logs)
 
-    @work(exclusive=True, thread=True)
-    def load_more_logs(self) -> None:
+    @work(exclusive=True, group="load_more_logs")
+    async def load_more_logs(self) -> None:
         reached_end = self.logs_reached_end
         offset = self.logs_offset
 
@@ -111,12 +111,12 @@ class LogList(ScrollableContainer):
 
         if self.logs_only_active:
             logs = []
-            active_log = get_active(self.logs_server)
+            active_log = await get_active(self.logs_server)
             if active_log is not None:
                 logs.append(active_log)
             reached_end = True
         else:
-            logs = list_page(
+            logs = await list_page(
                 self.logs_server,
                 offset=self.logs_offset,
                 limit=limit,

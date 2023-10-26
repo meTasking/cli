@@ -14,9 +14,9 @@ def edit_file(editor_cmd: str, filename: str) -> None:
     subprocess.run([editor_cmd, filename])
 
 
-def execute(args: CliArgs) -> int:
+async def execute(args: CliArgs) -> int:
     assert args.edit is not None
-    log = read(args.server, args.edit.id)
+    log = await read(args.server, args.edit.id)
 
     # Preprocessing
     if log.get("category") is not None:
@@ -42,7 +42,7 @@ def execute(args: CliArgs) -> int:
     del log["id"]
 
     # Update the log
-    update(
+    await update(
         args.server,
         log_id,
         create_category=True,

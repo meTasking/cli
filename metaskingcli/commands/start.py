@@ -1,10 +1,10 @@
 from typing import Any
 
 from metaskingcli.args import CliArgs
-from metaskingcli.api.log import start
+from metaskingcli.api.log import start, next
 
 
-def execute(args: CliArgs) -> int:
+async def execute(args: CliArgs) -> int:
     assert args.start is not None
 
     json_params: dict[str, Any] = {}
@@ -18,8 +18,11 @@ def execute(args: CliArgs) -> int:
         json_params['category'] = args.start.category
 
     params: dict[str, Any] = {}
+    if args.start.time is not None:
+        params['override-time'] = args.start.time.isoformat()
     if args.start.adjust is not None:
         params['adjust-time'] = args.start.adjust.total_seconds()
 
-    start(args.server, params, **json_params)
+    fn = next if args.start.next else start
+    await fn(args.server, params, **json_params)
     return 0

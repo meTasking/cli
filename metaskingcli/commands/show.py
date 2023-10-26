@@ -5,9 +5,9 @@ from metaskingcli.args import CliArgs, OutputFormat
 from metaskingcli.api.log import read
 
 
-def execute(args: CliArgs) -> int:
+async def execute(args: CliArgs) -> int:
     assert args.show is not None
-    log = read(args.server, args.show.id)
+    log = await read(args.server, args.show.id)
     if args.show.format == OutputFormat.json:
         print(json.dumps(log))
     elif args.show.format == OutputFormat.yaml:

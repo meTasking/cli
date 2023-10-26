@@ -348,8 +348,8 @@ class WorkLogCalendarDay(Widget):
         self.refresh(layout=True)
         self._refresh_data()
 
-    @work(thread=True, exclusive=True)
-    def _refresh_data(self) -> None:
+    @work(exclusive=True, group="calendar_refresh_data")
+    async def _refresh_data(self) -> None:
         if self.day is None:
             return
 
@@ -358,7 +358,7 @@ class WorkLogCalendarDay(Widget):
         since = datetime.combine(self.day, time.min)
         until = datetime.combine(self.day, time.max)
 
-        for log in list_all(
+        async for log in list_all(
             self.logs_server,
             since=since,
             until=until,

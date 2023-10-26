@@ -31,7 +31,7 @@ class TuiCmd(BaseModel):
 
 class StartCmd(BaseModel):
     _description = (
-        "Start a new log of a working session and start tracking time" +
+        "Start a new work log and start tracking time" +
         ", any active log will be paused"
     )
 
@@ -53,40 +53,34 @@ class StartCmd(BaseModel):
         description="Name of category to assign the log to",
     )
 
-    adjust: Optional[timedelta] = Field(
-        default=None,
-        description="Adjust the start time of the log",
+    next: bool = Field(
+        default=False,
+        description="Stop active log instead of just pausing it",
     )
 
-
-class NextCmd(BaseModel):
-    _description = (
-        "Start a new log of a working session and start tracking time" +
-        ", any active log will be stopped"
-    )
-
-    name: Optional[str] = Field(
+    time: Optional[datetime] = Field(
         default=None,
-        description="Name of log",
-    )
-    description: Optional[str] = Field(
-        default=None,
-        description="Description of log",
-    )
-
-    task: Optional[str] = Field(
-        default=None,
-        description="Name of task to assign the log to",
-    )
-    category: Optional[str] = Field(
-        default=None,
-        description="Name of category to assign the log to",
+        description="Override start time of the log",
     )
 
     adjust: Optional[timedelta] = Field(
         default=None,
         description="Adjust the start time of the log",
     )
+
+    @validator("time", pre=True, always=True)
+    def parse_datetime(cls, value):
+        if value is None:
+            return None
+
+        if isinstance(value, datetime):
+            # If it's already a datetime object, return it as is
+            return value.astimezone()
+
+        try:
+            return parser.parse(value).astimezone()
+        except Exception as e:
+            raise ValueError(f"Failed to parse datetime: {e}")
 
 
 class PauseCmd(BaseModel):
@@ -101,10 +95,29 @@ class PauseCmd(BaseModel):
         description="Id of Log to pause (default: active log)",
     )
 
+    time: Optional[datetime] = Field(
+        default=None,
+        description="Override end time of the record",
+    )
+
     adjust: Optional[timedelta] = Field(
         default=None,
         description="Adjust the end time of the record",
     )
+
+    @validator("time", pre=True, always=True)
+    def parse_datetime(cls, value):
+        if value is None:
+            return None
+
+        if isinstance(value, datetime):
+            # If it's already a datetime object, return it as is
+            return value.astimezone()
+
+        try:
+            return parser.parse(value).astimezone()
+        except Exception as e:
+            raise ValueError(f"Failed to parse datetime: {e}")
 
 
 class ResumeCmd(BaseModel):
@@ -114,10 +127,29 @@ class ResumeCmd(BaseModel):
         description="Id of Log to resume (default: last log)",
     )
 
+    time: Optional[datetime] = Field(
+        default=None,
+        description="Override start time of the record",
+    )
+
     adjust: Optional[timedelta] = Field(
         default=None,
         description="Adjust the start time of the record",
     )
+
+    @validator("time", pre=True, always=True)
+    def parse_datetime(cls, value):
+        if value is None:
+            return None
+
+        if isinstance(value, datetime):
+            # If it's already a datetime object, return it as is
+            return value.astimezone()
+
+        try:
+            return parser.parse(value).astimezone()
+        except Exception as e:
+            raise ValueError(f"Failed to parse datetime: {e}")
 
 
 class StopCmd(BaseModel):
@@ -131,10 +163,29 @@ class StopCmd(BaseModel):
         description="Stop all logs",
     )
 
+    time: Optional[datetime] = Field(
+        default=None,
+        description="Override end time of the log",
+    )
+
     adjust: Optional[timedelta] = Field(
         default=None,
         description="Adjust the end time of the log",
     )
+
+    @validator("time", pre=True, always=True)
+    def parse_datetime(cls, value):
+        if value is None:
+            return None
+
+        if isinstance(value, datetime):
+            # If it's already a datetime object, return it as is
+            return value.astimezone()
+
+        try:
+            return parser.parse(value).astimezone()
+        except Exception as e:
+            raise ValueError(f"Failed to parse datetime: {e}")
 
 
 class StatusCmd(BaseModel):
@@ -269,9 +320,6 @@ class CliArgs(BaseModel):
     )
     start: Optional[StartCmd] = Field(
         description=StartCmd._description,
-    )
-    next: Optional[NextCmd] = Field(
-        description=NextCmd._description,
     )
     pause: Optional[PauseCmd] = Field(
         description=PauseCmd._description,

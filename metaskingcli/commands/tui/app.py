@@ -1,13 +1,12 @@
 from typing import Any, Callable, Iterable
 from functools import partial
 
-from textual import work
 from textual.app import App, ComposeResult
 from textual._system_commands import SystemCommands
 from textual.command import Hit, Hits, Provider
 from textual.binding import Binding
 from textual.containers import Container
-from textual.widgets import Footer, Header, Static, Tabs, Tab
+from textual.widgets import Footer, Header, Static, TabbedContent, TabPane
 
 from metaskingcli.api.log import (
     stop_all,
@@ -113,12 +112,6 @@ class MeTaskingTui(App):
     TITLE = "MeTasking TUI"
 
     CSS = """
-    #header {
-        dock: top;
-        height: auto;
-        width: 100%;
-    }
-
     .heading {
         text-style: bold;
         border-bottom: solid darkgray;
@@ -127,23 +120,6 @@ class MeTaskingTui(App):
     .container-top {
         padding-left: 1;
         padding-right: 1;
-    }
-
-    #container-logs {
-        height: 100%;
-        display: none;
-    }
-
-    #container-calendar {
-        display: none;
-    }
-
-    #container-report {
-        display: none;
-    }
-
-    .tab-selected {
-        display: block !important;
     }
 
     #container-active-log,
@@ -183,106 +159,91 @@ class MeTaskingTui(App):
         super().__init__()
 
     def on_mount(self) -> None:
-        self.query_one(Tabs).focus()
         self.call_after_refresh(self.action_refresh)
 
-    def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
-        if event.tab is None:
-            self.query_one("#container-report").remove_class("tab-selected")
-            self.query_one("#container-calendar").remove_class("tab-selected")
-            self.query_one("#container-logs").remove_class("tab-selected")
-        elif event.tab.id == "tab-logs":
-            self.query_one("#container-report").remove_class("tab-selected")
-            self.query_one("#container-calendar").remove_class("tab-selected")
-            self.query_one("#container-logs").add_class("tab-selected")
-        elif event.tab.id == "tab-calendar":
-            self.query_one("#container-report").remove_class("tab-selected")
-            self.query_one("#container-calendar").add_class("tab-selected")
-            self.query_one("#container-logs").remove_class("tab-selected")
-        elif event.tab.id == "tab-report":
-            self.query_one("#container-report").add_class("tab-selected")
-            self.query_one("#container-calendar").remove_class("tab-selected")
-            self.query_one("#container-logs").remove_class("tab-selected")
-
     def compose(self) -> ComposeResult:
-        with Container(id="header"):
-            yield Header(show_clock=True)
-            yield Tabs(
-                Tab("Logs", id="tab-logs"),
-                Tab("Calendar", id="tab-calendar"),
-                Tab("Report", id="tab-report"),
-            )
+        # with Container(id="header"):
+        yield Header(show_clock=True)
+        # yield Tabs(
+        #     Tab("Logs", id="tab-logs"),
+        #     Tab("Calendar", id="tab-calendar"),
+        #     Tab("Report", id="tab-report"),
+        # )
 
         yield Footer()
 
-        with Container(
-            id="container-logs",
-            # classes="container-top",
-        ):
-            with Container(
-                id="container-active-log",
-                classes="container-top",
-            ):
-                yield Static("Active log(s)", classes="heading")
-                yield LogList(
+        with TabbedContent():
+            with TabPane("Logs"):
+                with Container(
+                    id="container-logs",
+                    # classes="container-top",
+                ):
+                    with Container(
+                        id="container-active-log",
+                        classes="container-top",
+                    ):
+                        yield Static("Active log(s)", classes="heading")
+                        yield LogList(
+                            server=self._server,
+                            only_active=True,
+                            reload_all_logs=self.action_refresh,
+                            read_only_mode=self._read_only_mode,
+                            id="container-active-log-inner",
+                        )
+
+                    with AutoLoadScrollableContainer(
+                        scroll_end_callback=partial(
+                            self.call_after_refresh,
+                            self.scroll_end_callback,
+                        ),
+                    ):
+                        with Container(
+                            id="container-non-stopped-logs",
+                            classes="container-top",
+                        ):
+                            yield Static(
+                                "Non-stopped log(s)",
+                                classes="heading",
+                            )
+                            yield LogList(
+                                server=self._server,
+                                only_active=False,
+                                filters={"stopped": False},
+                                reload_all_logs=self.action_refresh,
+                                read_only_mode=self._read_only_mode,
+                                id="container-non-stopped-logs-inner",
+                            )
+
+                        with Container(
+                            id="container-stopped-logs",
+                            classes="container-top",
+                        ):
+                            yield Static(
+                                "Stopped log(s)",
+                                classes="heading",
+                            )
+                            yield LogList(
+                                server=self._server,
+                                only_active=False,
+                                filters={"stopped": True},
+                                reload_all_logs=self.action_refresh,
+                                read_only_mode=self._read_only_mode,
+                                id="container-stopped-logs-inner",
+                            )
+
+            with TabPane("Calendar"):
+                yield WorkLogCalendar(
                     server=self._server,
-                    only_active=True,
-                    reload_all_logs=self.action_refresh,
-                    read_only_mode=self._read_only_mode,
-                    id="container-active-log-inner",
+                    id="container-calendar",
+                    # classes="container-top",
                 )
 
-            with AutoLoadScrollableContainer(
-                scroll_end_callback=partial(
-                    self.call_after_refresh,
-                    self.scroll_end_callback,
-                ),
-            ):
-                with Container(
-                    id="container-non-stopped-logs",
-                    classes="container-top",
-                ):
-                    yield Static(
-                        "Non-stopped log(s)",
-                        classes="heading",
-                    )
-                    yield LogList(
-                        server=self._server,
-                        only_active=False,
-                        filters={"stopped": False},
-                        reload_all_logs=self.action_refresh,
-                        read_only_mode=self._read_only_mode,
-                        id="container-non-stopped-logs-inner",
-                    )
-
-                with Container(
-                    id="container-stopped-logs",
-                    classes="container-top",
-                ):
-                    yield Static(
-                        "Stopped log(s)",
-                        classes="heading",
-                    )
-                    yield LogList(
-                        server=self._server,
-                        only_active=False,
-                        filters={"stopped": True},
-                        reload_all_logs=self.action_refresh,
-                        read_only_mode=self._read_only_mode,
-                        id="container-stopped-logs-inner",
-                    )
-
-        yield WorkLogCalendar(
-            server=self._server,
-            id="container-calendar",
-            # classes="container-top",
-        )
-
-        yield WorkLogReport(
-            server=self._server,
-            id="container-report",
-            # classes="container-top",
-        )
+            with TabPane("Report"):
+                yield WorkLogReport(
+                    server=self._server,
+                    id="container-report",
+                    # classes="container-top",
+                )
 
     def action_refresh(self) -> None:
         """An action to refresh data."""
@@ -293,51 +254,44 @@ class MeTaskingTui(App):
         for report in self.query(WorkLogReport).results():
             report.refresh_data()
 
-    @work(thread=True)
-    def action_delete(self) -> None:
+    async def action_delete(self) -> None:
         """An action to delete active log."""
-        delete(self._server, -1)
+        await delete(self._server, -1)
         self.call_after_refresh(self.action_refresh)
 
-    def action_edit(self) -> None:
+    async def action_edit(self) -> None:
         """An action to edit active log."""
         # TODO: Implement edit
         pass
 
-    @work(thread=True)
-    def action_next(self) -> None:
+    async def action_next(self) -> None:
         """An action to stop active log and start new one."""
-        next(self._server)
+        await next(self._server)
         self.call_after_refresh(self.action_refresh)
 
-    @work(thread=True)
-    def action_pause(self) -> None:
+    async def action_pause(self) -> None:
         """An action to pause active log."""
-        pause_active(self._server)
+        await pause_active(self._server)
         self.call_after_refresh(self.action_refresh)
 
-    @work(thread=True)
-    def action_resume(self) -> None:
+    async def action_resume(self) -> None:
         """An action to resume active log."""
-        resume(self._server, -1)
+        await resume(self._server, -1)
         self.call_after_refresh(self.action_refresh)
 
-    @work(thread=True)
-    def action_start(self) -> None:
+    async def action_start(self) -> None:
         """An action to start new log and pause active one."""
-        start(self._server)
+        await start(self._server)
         self.call_after_refresh(self.action_refresh)
 
-    @work(thread=True)
-    def action_stop(self) -> None:
+    async def action_stop(self) -> None:
         """An action to stop active log."""
-        stop_active(self._server)
+        await stop_active(self._server)
         self.call_after_refresh(self.action_refresh)
 
-    @work(thread=True)
-    def action_stop_all(self) -> None:
+    async def action_stop_all(self) -> None:
         """An action to stop all logs."""
-        stop_all(self._server)
+        await stop_all(self._server)
         self.call_after_refresh(self.action_refresh)
 
     def action_more(self) -> None:

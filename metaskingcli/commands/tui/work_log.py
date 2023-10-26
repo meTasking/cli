@@ -11,7 +11,8 @@ from metaskingcli.api.log import (
     pause,
     resume,
     delete,
-    update
+    update,
+    start,
 )
 
 from .range_bar import RangeBar
@@ -135,6 +136,10 @@ class WorkLog(Static):
         background: darkcyan;
     }
 
+    WorkLog .log-clone {
+        background: lightgreen;
+    }
+
     WorkLog .log-delete {
         background: $error;
     }
@@ -215,35 +220,35 @@ class WorkLog(Static):
 
         super().__init__(**kwargs)
 
-    @work(thread=True)
-    def save_category(self, category: str | None) -> None:
-        update(
+    @work()
+    async def save_category(self, category: str | None) -> None:
+        await update(
             self._logs_server,
             self._log['id'],
             create_category=True,
             category=category,
         )
 
-    @work(thread=True)
-    def save_task(self, task: str | None) -> None:
-        update(
+    @work()
+    async def save_task(self, task: str | None) -> None:
+        await update(
             self._logs_server,
             self._log['id'],
             create_task=True,
             task=task,
         )
 
-    @work(thread=True)
-    def save_name(self, name: str | None) -> None:
-        update(
+    @work()
+    async def save_name(self, name: str | None) -> None:
+        await update(
             self._logs_server,
             self._log['id'],
             name=name,
         )
 
-    @work(thread=True)
-    def save_description(self, description: str | None) -> None:
-        update(
+    @work()
+    async def save_description(self, description: str | None) -> None:
+        await update(
             self._logs_server,
             self._log['id'],
             description=description,
@@ -327,6 +332,12 @@ class WorkLog(Static):
                     classes="log-button log-resume"
                 )
 
+            yield Button(
+                "Clone",
+                name="clone",
+                classes="log-button log-clone"
+            )
+
             # yield Button(
             #     "Edit",
             #     name="edit",
@@ -338,20 +349,36 @@ class WorkLog(Static):
                 classes="log-button log-delete"
             )
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Event handler called when a button is pressed."""
 
         button_name = event.button.name
         if button_name == "stop":
-            stop(self._logs_server, self._log['id'])
+            await stop(self._logs_server, self._log['id'])
         elif button_name == "pause":
-            pause(self._logs_server, self._log['id'])
+            await pause(self._logs_server, self._log['id'])
         elif button_name == "resume":
-            resume(self._logs_server, self._log['id'])
+            await resume(self._logs_server, self._log['id'])
+        elif button_name == "clone":
+            json_params: dict[str, Any] = {}
+            if self._log['task'] is not None:
+                json_params['task'] = self._log['task']['name']
+            if self._log['category'] is not None:
+                json_params['category'] = self._log['category']['name']
+            if self._log['meta'] is not None:
+                json_params['meta'] = self._log['meta']
+
+            await start(
+                self._logs_server,
+                name=self._log['name'],
+                description=self._log['description'],
+                flags=self._log['flags'],
+                **json_params
+            )
         elif button_name == "edit":
             # TODO: Implement edit
             pass
         elif button_name == "delete":
-            delete(self._logs_server, self._log['id'])
+            await delete(self._logs_server, self._log['id'])
 
         self._refresh_app()

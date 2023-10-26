@@ -11,14 +11,14 @@ from metaskingcli.args import CliArgs
 from metaskingcli.api.log import list_all
 
 
-def execute(args: CliArgs) -> int:
+async def execute(args: CliArgs) -> int:
     assert args.report is not None
 
     dates: dict[date, float] = {}
 
     total_duration = 0.0
 
-    for log in list_all(
+    async for log in list_all(
         args.server,
         flags=args.report.flags,
         since=args.report.since,

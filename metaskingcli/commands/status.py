@@ -2,9 +2,9 @@ from metaskingcli.args import CliArgs
 from metaskingcli.api.log import get_active, list_all
 
 
-def execute(args: CliArgs) -> int:
+async def execute(args: CliArgs) -> int:
     print("Active logs:")
-    active = get_active(args.server)
+    active = await get_active(args.server)
     if active is not None:
         time_range = ""
         if len(active['records']) > 0:
@@ -18,7 +18,7 @@ def execute(args: CliArgs) -> int:
         print("- None")
 
     print("All non-stopped logs:")
-    for log in list_all(args.server, stopped=False):
+    async for log in list_all(args.server, stopped=False):
         time_range = ""
         if len(log['records']) > 0:
             time_range = f" ({log['records'][0]['start']} " + \

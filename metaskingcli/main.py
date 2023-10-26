@@ -5,7 +5,6 @@ from .args import parse_arguments
 from .commands import (
     cmd_tui,
     cmd_start,
-    cmd_next,
     cmd_pause,
     cmd_resume,
     cmd_stop,
@@ -34,7 +33,7 @@ def setup_log() -> logging.Handler:
     return root_stderr_handler
 
 
-def main():
+async def main():
     # Configure logging
     root_log_handler = setup_log()
 
@@ -48,28 +47,26 @@ def main():
     if args.help:
         parser.print_help()
     elif args.tui:
-        code = cmd_tui(args)
+        code = await cmd_tui(args)
     elif args.start:
-        code = cmd_start(args)
-    elif args.next:
-        code = cmd_next(args)
+        code = await cmd_start(args)
     elif args.pause:
-        code = cmd_pause(args)
+        code = await cmd_pause(args)
     elif args.resume:
-        code = cmd_resume(args)
+        code = await cmd_resume(args)
     elif args.stop:
-        code = cmd_stop(args)
+        code = await cmd_stop(args)
     elif args.status:
-        code = cmd_status(args)
+        code = await cmd_status(args)
     elif args.show:
-        code = cmd_show(args)
+        code = await cmd_show(args)
     elif args.list:
-        code = cmd_list(args)
+        code = await cmd_list(args)
     elif args.report:
-        code = cmd_report(args)
+        code = await cmd_report(args)
     elif args.delete:
-        code = cmd_delete(args)
+        code = await cmd_delete(args)
     elif args.edit:
-        code = cmd_edit(args)
+        code = await cmd_edit(args)
 
     sys.exit(code)

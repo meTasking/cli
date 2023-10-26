@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import AsyncGenerator
 from datetime import datetime, timedelta, date, time
 
 from textual import work
@@ -6,7 +6,6 @@ from textual.app import ComposeResult
 from textual.containers import ScrollableContainer, Container, Horizontal
 from textual.reactive import reactive
 from textual.widgets import Button, Static, ProgressBar
-from textual.widget import Widget
 
 from metaskingcli.utils import split_hours
 from metaskingcli.api.log import (
@@ -176,14 +175,14 @@ class WorkLogReportDay(Horizontal):
             f"{split_current['milliseconds']}ms"
         )
 
-    def _fetch_total(
+    async def _fetch_total(
         self,
         since: datetime,
         until: datetime
-    ) -> Iterable[float]:
+    ) -> AsyncGenerator[float, None]:
         total = 0.0
 
-        for log in list_all(
+        async for log in list_all(
             self.logs_server,
             since=since,
             until=until,
@@ -215,8 +214,8 @@ class WorkLogReportDay(Horizontal):
         self.update_content()
         self._refresh_data()
 
-    @work(thread=True, exclusive=True)
-    def _refresh_data(self) -> None:
+    @work(exclusive=True, group="report_refresh_data")
+    async def _refresh_data(self) -> None:
         if self.day is None:
             return
 
@@ -233,7 +232,7 @@ class WorkLogReportDay(Horizontal):
             day_since = datetime.combine(self.day, time.min)
             day_until = datetime.combine(self.day, time.max)
 
-        for current in self._fetch_total(day_since, day_until):
+        async for current in self._fetch_total(day_since, day_until):
             self._current = current
             self.call_after_refresh(self.update_content)
 

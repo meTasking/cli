@@ -5,10 +5,10 @@ from metaskingcli.args import CliArgs, OutputFormat
 from metaskingcli.api.log import list_all
 
 
-def execute(args: CliArgs) -> int:
+async def execute(args: CliArgs) -> int:
     assert args.list is not None
 
-    for log in list_all(
+    async for log in list_all(
         args.server,
         flags=args.list.flags,
         order=args.list.order,
