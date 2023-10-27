@@ -181,6 +181,22 @@ async def update(
             return await handle_response(response)
 
 
+async def update_active(
+    server: str,
+    create_category: bool = False,
+    create_task: bool = False,
+    **kwargs,
+) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/active"
+    params = {
+        "create-category": "true" if create_category else "false",
+        "create-task": "true" if create_task else "false",
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.put(url, params=params, json=kwargs) as response:
+            return await handle_response(response)
+
+
 async def delete(server: str, log_id: int) -> dict:
     url = f"{server}/api/{API_VERSION}/log/{log_id}"
     async with aiohttp.ClientSession() as session:

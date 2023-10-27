@@ -12,6 +12,7 @@ from metaskingcli.api.log import (
     resume,
     delete,
     update,
+    update_active,
     start,
 )
 
@@ -341,6 +342,13 @@ class WorkLog(Static):
                 classes="log-button log-clone"
             )
 
+            if not self.active:
+                yield Button(
+                    "Fill",
+                    name="fill",
+                    classes="log-button log-fill"
+                )
+
             # yield Button(
             #     "Edit",
             #     name="edit",
@@ -392,6 +400,21 @@ class WorkLog(Static):
                 flags=self._log['flags'],
                 params=app.time_adjust_params,
                 **json_params,
+            )
+        elif button_name == "fill":
+            params: dict[str, Any] = {
+                'name': self._log['name'],
+            }
+            if self._log['task'] is not None:
+                params['task'] = self._log['task']['name']
+            if self._log['category'] is not None:
+                params['category'] = self._log['category']['name']
+            if self._log['description'] is not None:
+                params['description'] = self._log['description']
+
+            await update_active(
+                self._logs_server,
+                **params,
             )
         elif button_name == "edit":
             # TODO: Implement edit
