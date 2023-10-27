@@ -1,13 +1,22 @@
 from typing import Any, Callable, Iterable
 from functools import partial
+from datetime import timedelta
 
 from textual.app import App, ComposeResult
 from textual._system_commands import SystemCommands
 from textual.command import Hit, Hits, Provider
 from textual.binding import Binding
-from textual.containers import Container
-from textual.widgets import Footer, Header, Static, TabbedContent, TabPane
+from textual.containers import Container, Horizontal
+from textual.widgets import (
+    Footer,
+    Header,
+    Static,
+    TabbedContent,
+    TabPane,
+    Button,
+)
 
+from metaskingcli.utils import split_hours
 from metaskingcli.api.log import (
     stop_all,
     stop_active,
@@ -18,6 +27,7 @@ from metaskingcli.api.log import (
     delete,
 )
 
+from .slider import Slider
 from .scrollable_auto_load import AutoLoadScrollableContainer
 from .work_log_list import LogList
 from .calendar import WorkLogCalendar
@@ -117,6 +127,32 @@ class MeTaskingTui(App):
         border-bottom: solid darkgray;
     }
 
+    #container-time-adjust {
+        width: 100%;
+        height: 4;
+        padding-left: 1;
+        padding-right: 1;
+        border-bottom: solid darkgray;
+    }
+
+    #header-time-adjust {
+        content-align: center middle;
+        width: 13;
+        height: 3;
+    }
+
+    #slider-time-adjust {
+        content-align: center middle;
+        width: 1fr;
+        height: 3;
+    }
+
+    #label-time-adjust {
+        content-align: center middle;
+        width: 17;
+        height: 3;
+    }
+
     .container-top {
         padding-left: 1;
         padding-right: 1;
@@ -148,6 +184,14 @@ class MeTaskingTui(App):
     _server: str
     _read_only_mode: bool
 
+    time_adjust: timedelta
+
+    @property
+    def time_adjust_params(self) -> dict[str, Any]:
+        return {
+            'adjust-time': self.time_adjust.total_seconds(),
+        }
+
     COMMANDS = {
         SystemCommands,
         MeTaskingTuiCommands,
@@ -156,21 +200,30 @@ class MeTaskingTui(App):
     def __init__(self, server: str, read_only_mode: bool) -> None:
         self._server = server
         self._read_only_mode = read_only_mode
+        self.time_adjust = timedelta()
         super().__init__()
 
     def on_mount(self) -> None:
         self.call_after_refresh(self.action_refresh)
 
     def compose(self) -> ComposeResult:
-        # with Container(id="header"):
         yield Header(show_clock=True)
-        # yield Tabs(
-        #     Tab("Logs", id="tab-logs"),
-        #     Tab("Calendar", id="tab-calendar"),
-        #     Tab("Report", id="tab-report"),
-        # )
-
         yield Footer()
+
+        with Horizontal(id="container-time-adjust"):
+            yield Static("Time adjust: ", id="header-time-adjust")
+
+            slider = Slider(progress=0.5, id="slider-time-adjust")
+            yield slider
+            self.watch(
+                slider,
+                "percentage",
+                self.time_adjust_update,
+                init=False,
+            )
+
+            yield Static(" +000:00:00.0000", id="label-time-adjust")
+            yield Button("Reset", name="reset-time-adjust")
 
         with TabbedContent():
             with TabPane("Logs"):
@@ -245,6 +298,38 @@ class MeTaskingTui(App):
                     # classes="container-top",
                 )
 
+    def time_adjust_update(self, percentage: float | None) -> None:
+        if percentage is None:
+            return
+
+        offset = percentage - 0.5  # -0.5 ~ 0.5
+        offset *= 60  # -30 ~ 30
+        seconds = offset ** 3  # -27000 ~ 27000
+
+        self.time_adjust = timedelta(seconds=seconds)
+
+        hours = seconds / 3600
+        components = split_hours(abs(hours))
+
+        label: Static = self.query_one("#label-time-adjust")  # type: ignore
+        label.update(
+            f" {'-' if hours < 0 else '+'}" +
+            f"{components['hours']}:" +
+            f"{components['minutes']}:" +
+            f"{components['seconds']}." +
+            f"{components['milliseconds']}"
+        )
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Event handler called when a button is pressed."""
+
+        button_name = event.button.name
+        if button_name == "reset-time-adjust":
+            slider: Slider = self.query_one(
+                "#slider-time-adjust"
+            )  # type: ignore
+            slider.percentage = 0.5
+
     def action_refresh(self) -> None:
         """An action to refresh data."""
         for log_list in self.query(LogList).results():
@@ -266,32 +351,32 @@ class MeTaskingTui(App):
 
     async def action_next(self) -> None:
         """An action to stop active log and start new one."""
-        await next(self._server)
+        await next(self._server, self.time_adjust_params)
         self.call_after_refresh(self.action_refresh)
 
     async def action_pause(self) -> None:
         """An action to pause active log."""
-        await pause_active(self._server)
+        await pause_active(self._server, **self.time_adjust_params)
         self.call_after_refresh(self.action_refresh)
 
     async def action_resume(self) -> None:
         """An action to resume active log."""
-        await resume(self._server, -1)
+        await resume(self._server, -1, **self.time_adjust_params)
         self.call_after_refresh(self.action_refresh)
 
     async def action_start(self) -> None:
         """An action to start new log and pause active one."""
-        await start(self._server)
+        await start(self._server, self.time_adjust_params)
         self.call_after_refresh(self.action_refresh)
 
     async def action_stop(self) -> None:
         """An action to stop active log."""
-        await stop_active(self._server)
+        await stop_active(self._server, **self.time_adjust_params)
         self.call_after_refresh(self.action_refresh)
 
     async def action_stop_all(self) -> None:
         """An action to stop all logs."""
-        await stop_all(self._server)
+        await stop_all(self._server, **self.time_adjust_params)
         self.call_after_refresh(self.action_refresh)
 
     def action_more(self) -> None:

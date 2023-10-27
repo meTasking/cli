@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 from datetime import datetime
 
 from textual import work
@@ -17,6 +17,9 @@ from metaskingcli.api.log import (
 
 from .range_bar import RangeBar
 from .editable import EditableText
+
+if TYPE_CHECKING:
+    from .app import MeTaskingTui
 
 
 class WorkLog(Static):
@@ -352,13 +355,27 @@ class WorkLog(Static):
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Event handler called when a button is pressed."""
 
+        app: "MeTaskingTui" = self.app  # type: ignore
+
         button_name = event.button.name
         if button_name == "stop":
-            await stop(self._logs_server, self._log['id'])
+            await stop(
+                self._logs_server,
+                self._log['id'],
+                **app.time_adjust_params,
+            )
         elif button_name == "pause":
-            await pause(self._logs_server, self._log['id'])
+            await pause(
+                self._logs_server,
+                self._log['id'],
+                **app.time_adjust_params,
+            )
         elif button_name == "resume":
-            await resume(self._logs_server, self._log['id'])
+            await resume(
+                self._logs_server,
+                self._log['id'],
+                **app.time_adjust_params
+            )
         elif button_name == "clone":
             json_params: dict[str, Any] = {}
             if self._log['task'] is not None:
@@ -373,7 +390,8 @@ class WorkLog(Static):
                 name=self._log['name'],
                 description=self._log['description'],
                 flags=self._log['flags'],
-                **json_params
+                params=app.time_adjust_params,
+                **json_params,
             )
         elif button_name == "edit":
             # TODO: Implement edit
