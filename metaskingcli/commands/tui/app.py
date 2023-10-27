@@ -153,6 +153,11 @@ class MeTaskingTui(App):
         height: 3;
     }
 
+    #container-tabs {
+        width: 100%;
+        height: 1fr;
+    }
+
     .container-top {
         padding-left: 1;
         padding-right: 1;
@@ -225,7 +230,7 @@ class MeTaskingTui(App):
             yield Static(" +000:00:00.0000", id="label-time-adjust")
             yield Button("Reset", name="reset-time-adjust")
 
-        with TabbedContent():
+        with TabbedContent(id="container-tabs"):
             with TabPane("Logs"):
                 with Container(
                     id="container-logs",
