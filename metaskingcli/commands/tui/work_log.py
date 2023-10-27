@@ -144,6 +144,10 @@ class WorkLog(Static):
         background: lightgreen;
     }
 
+    WorkLog .log-fill {
+        background: lightblue;
+    }
+
     WorkLog .log-delete {
         background: $error;
     }

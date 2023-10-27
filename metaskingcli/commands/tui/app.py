@@ -208,8 +208,8 @@ class MeTaskingTui(App):
         self.time_adjust = timedelta()
         super().__init__()
 
-    def on_mount(self) -> None:
-        self.call_after_refresh(self.action_refresh)
+    # def on_mount(self) -> None:
+    #     self.call_after_refresh(self.action_refresh)
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)

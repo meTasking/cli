@@ -3,7 +3,7 @@ from rich.text import Text
 from rich.style import Style, StyleType
 
 from textual.app import RenderResult as TextualRenderResult
-from textual.events import MouseMove
+from textual.events import MouseMove, Click
 from textual.reactive import reactive
 from textual.widget import Widget
 
@@ -177,7 +177,7 @@ class Slider(Widget, can_focus=True):
     def key_left(self) -> None:
         """Move the slider left."""
         self.percentage = max(self.percentage - 0.0005, 0.0)
-    
+
     def key_ctrl_left(self) -> None:
         """Move the slider left."""
         self.percentage = max(self.percentage - 0.05, 0.0)
@@ -197,6 +197,10 @@ class Slider(Widget, can_focus=True):
     def key_end(self) -> None:
         """Move the slider to the rightmost position."""
         self.percentage = 1.0
+
+    def on_click(self, event: Click):
+        """Move the slider to the mouse position."""
+        self.percentage = event.x / self.size.width
 
     def on_mouse_move(self, event: MouseMove):
         """Move the slider to the mouse position."""

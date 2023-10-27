@@ -73,6 +73,8 @@ class WorkLogReportDay(Horizontal):
         self.day = day
 
     def on_mount(self) -> None:
+        if self.day is None:
+            return
         self._refresh_data()
 
     def watch_total(self, old_value: bool, new_value: bool) -> None:
@@ -292,7 +294,7 @@ class WorkLogReport(ScrollableContainer):
         self.logs_server = server
         super().__init__(**kwargs)
 
-    def on_mount(self) -> None:
+    def on_show(self) -> None:
         self.update_content()
 
     @property
@@ -353,13 +355,20 @@ class WorkLogReport(ScrollableContainer):
                 self.month_start.month + 1,
                 1,
             )
+        elif button_name == "today":
+            self.month_start = _get_month_start(date.today())
 
     def compose(self) -> ComposeResult:
-        with Container(classes="container-report-header"):
+        with Horizontal(classes="container-report-header"):
             yield Button(
                 "<",
                 name="previous",
                 classes="report-button-previous",
+            )
+            yield Button(
+                "Today",
+                name="today",
+                classes="report-button-today",
             )
             yield Static(
                 classes="report-date-heading",

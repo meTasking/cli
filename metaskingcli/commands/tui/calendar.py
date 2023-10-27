@@ -6,8 +6,7 @@ from enum import Enum
 from rich.text import Text
 from textual import work
 from textual.app import ComposeResult, RenderResult
-from textual.containers import ScrollableContainer, Container, Horizontal
-from textual.geometry import Region
+from textual.containers import ScrollableContainer, Horizontal
 from textual.reactive import reactive
 from textual.widgets import Button, Static
 from textual.widget import Widget
@@ -260,6 +259,8 @@ class WorkLogCalendarDay(Widget):
         self.day = day
 
     def on_mount(self) -> None:
+        if self.day is None:
+            return
         self._refresh_data()
 
     def watch_day(self, new_value: date) -> None:
@@ -304,6 +305,9 @@ class WorkLogCalendarDay(Widget):
             iend = int(rend)
 
             tstart = istart
+            if istart > iend:
+                tstart = iend
+
             moved = False
             while tstart < height:
                 _, text, _ = lines_texts[tstart]
@@ -502,16 +506,16 @@ class WorkLogCalendar(ScrollableContainer):
         self.logs_server = server
         super().__init__(**kwargs)
 
-    def on_mount(self) -> None:
+    def on_show(self) -> None:
         self.update_content()
-        self.call_after_refresh(
-            self.scroll_to_region,
-            Region(
-                0, CALENDAR_HEIGHT // 2,
-                1, 1,
-            ),
-            center=True,
-        )
+    #     self.call_after_refresh(
+    #         self.scroll_to_region,
+    #         Region(
+    #             0, CALENDAR_HEIGHT // 2,
+    #             1, 1,
+    #         ),
+    #         center=True,
+    #     )
 
     @property
     def week_end(self) -> date:
@@ -547,13 +551,20 @@ class WorkLogCalendar(ScrollableContainer):
             self.week_start -= timedelta(days=7)
         elif button_name == "next":
             self.week_start += timedelta(days=7)
+        elif button_name == "today":
+            self.week_start = _get_week_start(date.today())
 
     def compose(self) -> ComposeResult:
-        with Container(classes="container-calendar-header"):
+        with Horizontal(classes="container-calendar-header"):
             yield Button(
                 "<",
                 name="previous",
                 classes="calendar-button-previous",
+            )
+            yield Button(
+                "Today",
+                name="today",
+                classes="calendar-button-today",
             )
             yield Static(
                 classes="calendar-date-heading",
