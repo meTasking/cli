@@ -32,12 +32,18 @@ class EditableText(Static, can_focus=True):
     ) -> None:
         self.fallback_text = fallback_text
         self.save_callback = save_callback
-        super().__init__(self.resolve_text(text), **kwargs)
+        super().__init__(self._resolve_text(text), **kwargs)
+        self.update_text(text)
+
+    def update_text(self, text: str | None) -> None:
+        if text == self.text:
+            return
+
         self.text = text
         self.saved_text = text
         self.cursor = len(self.text or "")
 
-    def resolve_text(self, text: str | None) -> str:
+    def _resolve_text(self, text: str | None) -> str:
         if text is None:
             if self.has_focus:
                 return ""
@@ -45,14 +51,14 @@ class EditableText(Static, can_focus=True):
                 return self.fallback_text
         return text
 
-    def add_cursor(self, text: Text) -> Text:
+    def _add_cursor(self, text: Text) -> Text:
         if self.has_focus:
             return text[:self.cursor] + Text("|") + text[self.cursor:]
         return text
 
-    def update_text(self) -> None:
+    def _update_text(self) -> None:
         saved_text = self.saved_text or ""
-        final_text = self.resolve_text(self.text)
+        final_text = self._resolve_text(self.text)
         differs = self.saved_text != self.text
 
         if differs and self.text is not None:
@@ -68,22 +74,22 @@ class EditableText(Static, can_focus=True):
         if differs:
             enriched_text.append(Text("*", style="red"))
 
-        self.update(self.add_cursor(enriched_text))
+        self.update(self._add_cursor(enriched_text))
 
     def watch_text(self, new_value: str | None) -> None:
-        self.call_after_refresh(self.update_text)
+        self.call_after_refresh(self._update_text)
 
     def watch_saved_text(self, new_value: str | None) -> None:
-        self.call_after_refresh(self.update_text)
+        self.call_after_refresh(self._update_text)
 
     def watch_cursor(self, new_value: int) -> None:
-        self.call_after_refresh(self.update_text)
+        self.call_after_refresh(self._update_text)
 
     def on_focus(self, event) -> None:
-        self.call_after_refresh(self.update_text)
+        self.call_after_refresh(self._update_text)
 
     def on_blur(self, event) -> None:
-        self.call_after_refresh(self.update_text)
+        self.call_after_refresh(self._update_text)
 
     def key_enter(self) -> None:
         if self.save_callback is not None:

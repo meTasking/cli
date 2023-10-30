@@ -28,6 +28,8 @@ class LogList(ScrollableContainer):
     }
     """
 
+    _initial_load_done: bool = False
+
     reload_all_logs: Callable[[], None]
     read_only_mode: bool
     logs_server: str
@@ -53,7 +55,12 @@ class LogList(ScrollableContainer):
         super().__init__(classes="container-logs-wrapper", **kwargs)
         self.add_class("container-logs-wrapper-empty")
 
+    def on_show(self) -> None:
+        if not self._initial_load_done:
+            self.reload_logs()
+
     def reload_logs(self) -> None:
+        self._initial_load_done = True
         self.logs_reached_end = False
         self.logs_offset = 0
         self.query_one(".container-logs").remove_children()
@@ -101,6 +108,7 @@ class LogList(ScrollableContainer):
 
     @work(exclusive=True, group="load_more_logs")
     async def load_more_logs(self) -> None:
+        self._initial_load_done = True
         reached_end = self.logs_reached_end
         offset = self.logs_offset
 

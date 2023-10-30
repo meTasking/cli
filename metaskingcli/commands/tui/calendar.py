@@ -258,12 +258,20 @@ class WorkLogCalendarDay(Widget):
         super().__init__(**kwargs)
         self.day = day
 
-    def on_mount(self) -> None:
+    def on_show(self) -> None:
         if self.day is None:
             return
         self._refresh_data()
 
-    def watch_day(self, new_value: date) -> None:
+    def watch_day(
+        self,
+        old_value: date | None,
+        new_value: date | None
+    ) -> None:
+        if old_value == new_value:
+            # This is called during initialization which is bad
+            return
+
         self._ranges = []
         self.refresh(layout=True)
         self._refresh_data()

@@ -3,6 +3,7 @@ from datetime import datetime
 
 from textual import work
 from textual.app import ComposeResult
+from textual.reactive import reactive
 from textual.containers import Container, Horizontal
 from textual.widgets import Button, Static
 
@@ -156,7 +157,9 @@ class WorkLog(Static):
     _refresh_app: Callable[[], None]
     _logs_server: str
     _read_only_mode: bool
-    _log: dict[str, Any]
+    _log: reactive[dict[str, Any] | None] = reactive(None)
+
+    _is_mounted: bool = False
 
     start_date: str
     end_date: str
@@ -169,15 +172,24 @@ class WorkLog(Static):
         self,
         refresh_app: Callable[[], None],
         logs_server: str,
-        log: dict[str, Any],
+        log: dict[str, Any] | None = None,
         read_only_mode: bool = False,
         **kwargs
     ) -> None:
         self._refresh_app = refresh_app
         self._logs_server = logs_server
         self._read_only_mode = read_only_mode
-        self._log = log
 
+        super().__init__(**kwargs)
+
+        self._log = log
+        self.watch__log(log)
+
+    def on_mount(self) -> None:
+        self._is_mounted = True
+        self.call_after_refresh(self._update_content)
+
+    def watch__log(self, log: dict[str, Any] | None) -> None:
         self.start_date = "No records"
         self.end_date = "No records"
         self.start_time = "--:--:--"
@@ -185,52 +197,58 @@ class WorkLog(Static):
         self.activity_ranges = []
         self.active = False
 
-        if len(self._log['records']) > 0:
-            log_start = datetime.fromisoformat(
-                self._log['records'][0]['start']
-            )
+        if log is None or len(log['records']) == 0:
+            self._update_content()
+            return
 
-            self.start_date = log_start.strftime("%Y-%m-%d")
-            self.start_time = log_start.strftime("%H:%M:%S")
+        log_start = datetime.fromisoformat(
+            log['records'][0]['start']
+        )
 
-            curr_time = datetime.now()
-            log_end_str = self._log['records'][-1]['end']
-            log_end = curr_time
+        self.start_date = log_start.strftime("%Y-%m-%d")
+        self.start_time = log_start.strftime("%H:%M:%S")
 
-            if log_end_str is not None:
-                log_end = datetime.fromisoformat(log_end_str)
-                self.end_date = log_end.strftime("%Y-%m-%d")
-                self.end_time = log_end.strftime("%H:%M:%S")
-            else:
-                self.end_date = self.start_date
-                self.active = True
+        curr_time = datetime.now()
+        log_end_str = log['records'][-1]['end']
+        log_end = curr_time
 
-            log_end_real = log_end if self._log['stopped'] else curr_time
+        if log_end_str is not None:
+            log_end = datetime.fromisoformat(log_end_str)
+            self.end_date = log_end.strftime("%Y-%m-%d")
+            self.end_time = log_end.strftime("%H:%M:%S")
+        else:
+            self.end_date = self.start_date
+            self.active = True
 
-            duration = (log_end_real - log_start).total_seconds()
+        log_end_real = log_end if log['stopped'] else curr_time
 
-            def get_activity_range(
-                record: dict[str, Any]
-            ) -> tuple[float, float]:
-                start_time = datetime.fromisoformat(record['start'])
-                start = (start_time - log_start).total_seconds() / duration
-                if record['end'] is None:
-                    return (start, 1)
+        duration = (log_end_real - log_start).total_seconds()
 
-                end_time = datetime.fromisoformat(record['end'])
-                end = (end_time - log_start).total_seconds() / duration
-                return (start, end)
+        def get_activity_range(
+            record: dict[str, Any]
+        ) -> tuple[float, float]:
+            start_time = datetime.fromisoformat(record['start'])
+            start = (start_time - log_start).total_seconds() / duration
+            if record['end'] is None:
+                return (start, 1)
 
-            self.activity_ranges = list(map(
-                get_activity_range,
-                self._log['records'],
-            ))
+            end_time = datetime.fromisoformat(record['end'])
+            end = (end_time - log_start).total_seconds() / duration
+            return (start, end)
 
-        super().__init__(**kwargs)
+        self.activity_ranges = list(map(
+            get_activity_range,
+            log['records'],
+        ))
+
+        self._update_content()
 
     @work()
     async def save_category(self, category: str | None) -> None:
-        await update(
+        if self._log is None:
+            return
+
+        self._log = await update(
             self._logs_server,
             self._log['id'],
             create_category=True,
@@ -239,7 +257,10 @@ class WorkLog(Static):
 
     @work()
     async def save_task(self, task: str | None) -> None:
-        await update(
+        if self._log is None:
+            return
+
+        self._log = await update(
             self._logs_server,
             self._log['id'],
             create_task=True,
@@ -248,7 +269,10 @@ class WorkLog(Static):
 
     @work()
     async def save_name(self, name: str | None) -> None:
-        await update(
+        if self._log is None:
+            return
+
+        self._log = await update(
             self._logs_server,
             self._log['id'],
             name=name,
@@ -256,89 +280,177 @@ class WorkLog(Static):
 
     @work()
     async def save_description(self, description: str | None) -> None:
-        await update(
+        if self._log is None:
+            return
+
+        self._log = await update(
             self._logs_server,
             self._log['id'],
             description=description,
         )
 
+    @work()
+    async def save_flags(self, flags: str | None) -> None:
+        if self._log is None:
+            return
+
+        self._log = await update(
+            self._logs_server,
+            self._log['id'],
+            flags=(
+                flags.split(',')
+                if flags is not None
+                else []
+            ),
+        )
+
+    def _update_content(self) -> None:
+        if not self._is_mounted:
+            return
+
+        log_category: EditableText = self.query_one(  # type: ignore
+            ".log-category"
+        )
+        log_category.update_text(
+            self._log['category']['name']
+            if self._log is not None and self._log['category']
+            else None
+        )
+
+        log_task: EditableText = self.query_one(".log-task")  # type: ignore
+        log_task.update_text(
+            self._log['task']['name']
+            if self._log is not None and self._log['task']
+            else None
+        )
+
+        log_id: Static = self.query_one(".log-id")  # type: ignore
+        log_id.update(
+            str(self._log['id'])
+            if self._log is not None
+            else "---"
+        )
+
+        log_name: EditableText = self.query_one(".log-name")  # type: ignore
+        log_name.update_text(
+            self._log['name']
+            if self._log is not None
+            else None
+        )
+
+        log_flags: EditableText = self.query_one(".log-flags")  # type: ignore
+        log_flags.update_text(
+            ','.join(self._log['flags'])
+            if self._log is not None
+            else None
+        )
+
+        date_str = self.start_date
+        if self.start_date != self.end_date:
+            date_str += " - " + self.end_date
+        log_date: Static = self.query_one(".log-date")  # type: ignore
+        log_date.update(date_str)
+
+        time_str = self.start_time + " - " + self.end_time
+        log_time: Static = self.query_one(".log-time")  # type: ignore
+        log_time.update(time_str)
+
+        log_description: EditableText = self.query_one(  # type: ignore
+            ".log-description"
+        )
+        log_description.update_text(
+            self._log['description']
+            if self._log is not None
+            else None
+        )
+
+        log_visualization: Static = self.query_one(  # type: ignore
+            ".log-visualization"
+        )
+        log_visualization.update(
+            RangeBar(self.activity_ranges)
+        )
+
+        if self._read_only_mode or self._log is None:
+            buttons = self.query(".log-button")
+            for button in buttons.nodes:
+                button.display = False
+            return
+
+        button_stop: Button = self.query_one(".log-stop")  # type: ignore
+        button_pause: Button = self.query_one(".log-pause")  # type: ignore
+        button_resume: Button = self.query_one(".log-resume")  # type: ignore
+        button_clone: Button = self.query_one(".log-clone")  # type: ignore
+        button_fill: Button = self.query_one(".log-fill")  # type: ignore
+        button_delete: Button = self.query_one(".log-delete")  # type: ignore
+
+        button_stop.display = not self._log['stopped']
+        button_pause.display = self.active
+        button_resume.display = not self.active
+        button_clone.display = True
+        button_fill.display = not self.active
+        button_delete.display = True
+
     def compose(self) -> ComposeResult:
         with Container(classes="log-identifiers"):
             yield EditableText(
-                (
-                    self._log['category']['name']
-                    if self._log['category'] else None
-                ),
                 fallback_text="Default",
                 save_callback=self.save_category,
                 classes="log-category"
             )
             yield EditableText(
-                (
-                    self._log['task']['name']
-                    if self._log['task'] else None
-                ),
                 fallback_text="Default",
                 save_callback=self.save_task,
                 classes="log-task"
             )
 
-            yield Static(str(self._log['id']), classes="log-id")
+            yield Static(classes="log-id")
             yield EditableText(
-                self._log['name'],
                 fallback_text="---",
                 save_callback=self.save_name,
                 classes="log-name"
             )
-            yield Static(
-                '[' + (','.join(self._log['flags'])) + ']',
+            yield EditableText(
+                fallback_text="[]",
+                save_callback=self.save_flags,
                 classes="log-flags"
             )
 
         with Container(classes="log-middle"):
-            date_str = self.start_date
-            if self.start_date != self.end_date:
-                date_str += " - " + self.end_date
-            yield Static(date_str, classes="log-date")
-
-            time_str = self.start_time + " - " + self.end_time
-            yield Static(time_str, classes="log-time")
+            yield Static(classes="log-date")
+            yield Static(classes="log-time")
 
             yield EditableText(
-                self._log['description'],
                 fallback_text="No description",
                 save_callback=self.save_description,
                 classes="log-description"
             )
 
-            yield Static(
-                RangeBar(self.activity_ranges),
-                classes="log-visualization"
-            )
+            yield Static(classes="log-visualization")
 
         with Horizontal(classes="log-buttons"):
-            if self._read_only_mode:
-                return
+            # if self._read_only_mode:
+            #     return
 
-            if not self._log['stopped']:
-                yield Button(
-                    "Stop",
-                    name="stop",
-                    classes="log-button log-stop"
-                )
+            # if not self._log['stopped']:
+            yield Button(
+                "Stop",
+                name="stop",
+                classes="log-button log-stop"
+            )
 
-            if self.active:
-                yield Button(
-                    "Pause",
-                    name="pause",
-                    classes="log-button log-pause"
-                )
-            else:
-                yield Button(
-                    "Resume",
-                    name="resume",
-                    classes="log-button log-resume"
-                )
+            # if self.active:
+            yield Button(
+                "Pause",
+                name="pause",
+                classes="log-button log-pause"
+            )
+            # else:
+            yield Button(
+                "Resume",
+                name="resume",
+                classes="log-button log-resume"
+            )
 
             yield Button(
                 "Clone",
@@ -346,12 +458,12 @@ class WorkLog(Static):
                 classes="log-button log-clone"
             )
 
-            if not self.active:
-                yield Button(
-                    "Fill",
-                    name="fill",
-                    classes="log-button log-fill"
-                )
+            # if not self.active:
+            yield Button(
+                "Fill",
+                name="fill",
+                classes="log-button log-fill"
+            )
 
             # yield Button(
             #     "Edit",
@@ -366,6 +478,9 @@ class WorkLog(Static):
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Event handler called when a button is pressed."""
+
+        if self._log is None:
+            return
 
         app: "MeTaskingTui" = self.app  # type: ignore
 
