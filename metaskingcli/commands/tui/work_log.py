@@ -5,7 +5,8 @@ from textual import work
 from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.containers import Container, Horizontal
-from textual.widgets import Button, Static
+from textual.widget import Widget
+from textual.widgets import Button, Static, LoadingIndicator
 
 from metaskingcli.api.log import (
     stop,
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     from .app import MeTaskingTui
 
 
-class WorkLog(Static):
+class WorkLog(Widget):
     """A widget that displays a work log."""
 
     DEFAULT_CSS = """
@@ -375,106 +376,114 @@ class WorkLog(Static):
             buttons = self.query(".log-button")
             for button in buttons.nodes:
                 button.display = False
-            return
+        else:
+            button_stop: Button = self.query_one(".log-stop")  # type: ignore
+            button_pause: Button = self.query_one(".log-pause")  # type: ignore
+            button_resume: Button = self.query_one(
+                ".log-resume"
+            )  # type: ignore
+            button_clone: Button = self.query_one(".log-clone")  # type: ignore
+            button_fill: Button = self.query_one(".log-fill")  # type: ignore
+            button_delete: Button = self.query_one(
+                ".log-delete"
+            )  # type: ignore
 
-        button_stop: Button = self.query_one(".log-stop")  # type: ignore
-        button_pause: Button = self.query_one(".log-pause")  # type: ignore
-        button_resume: Button = self.query_one(".log-resume")  # type: ignore
-        button_clone: Button = self.query_one(".log-clone")  # type: ignore
-        button_fill: Button = self.query_one(".log-fill")  # type: ignore
-        button_delete: Button = self.query_one(".log-delete")  # type: ignore
+            button_stop.display = not self._log['stopped']
+            button_pause.display = self.active
+            button_resume.display = not self.active
+            button_clone.display = True
+            button_fill.display = not self.active
+            button_delete.display = True
 
-        button_stop.display = not self._log['stopped']
-        button_pause.display = self.active
-        button_resume.display = not self.active
-        button_clone.display = True
-        button_fill.display = not self.active
-        button_delete.display = True
+        self.query_one(LoadingIndicator).display = False
 
     def compose(self) -> ComposeResult:
-        with Container(classes="log-identifiers"):
-            yield EditableText(
-                fallback_text="Default",
-                save_callback=self.save_category,
-                classes="log-category"
-            )
-            yield EditableText(
-                fallback_text="Default",
-                save_callback=self.save_task,
-                classes="log-task"
-            )
+        yield LoadingIndicator(classes="-overlay")
 
-            yield Static(classes="log-id")
-            yield EditableText(
-                fallback_text="---",
-                save_callback=self.save_name,
-                classes="log-name"
-            )
-            yield EditableText(
-                fallback_text="[]",
-                save_callback=self.save_flags,
-                classes="log-flags"
-            )
+        with Container():
+            with Container(classes="log-identifiers"):
+                yield EditableText(
+                    fallback_text="Default",
+                    save_callback=self.save_category,
+                    classes="log-category"
+                )
+                yield EditableText(
+                    fallback_text="Default",
+                    save_callback=self.save_task,
+                    classes="log-task"
+                )
 
-        with Container(classes="log-middle"):
-            yield Static(classes="log-date")
-            yield Static(classes="log-time")
+                yield Static(classes="log-id")
+                yield EditableText(
+                    fallback_text="---",
+                    save_callback=self.save_name,
+                    classes="log-name"
+                )
+                yield EditableText(
+                    fallback_text="[]",
+                    save_callback=self.save_flags,
+                    classes="log-flags"
+                )
 
-            yield EditableText(
-                fallback_text="No description",
-                save_callback=self.save_description,
-                classes="log-description"
-            )
+            with Container(classes="log-middle"):
+                yield Static(classes="log-date")
+                yield Static(classes="log-time")
 
-            yield Static(classes="log-visualization")
+                yield EditableText(
+                    fallback_text="No description",
+                    save_callback=self.save_description,
+                    classes="log-description"
+                )
 
-        with Horizontal(classes="log-buttons"):
-            # if self._read_only_mode:
-            #     return
+                yield Static(classes="log-visualization")
 
-            # if not self._log['stopped']:
-            yield Button(
-                "Stop",
-                name="stop",
-                classes="log-button log-stop"
-            )
+            with Horizontal(classes="log-buttons"):
+                # if self._read_only_mode:
+                #     return
 
-            # if self.active:
-            yield Button(
-                "Pause",
-                name="pause",
-                classes="log-button log-pause"
-            )
-            # else:
-            yield Button(
-                "Resume",
-                name="resume",
-                classes="log-button log-resume"
-            )
+                # if not self._log['stopped']:
+                yield Button(
+                    "Stop",
+                    name="stop",
+                    classes="log-button log-stop"
+                )
 
-            yield Button(
-                "Clone",
-                name="clone",
-                classes="log-button log-clone"
-            )
+                # if self.active:
+                yield Button(
+                    "Pause",
+                    name="pause",
+                    classes="log-button log-pause"
+                )
+                # else:
+                yield Button(
+                    "Resume",
+                    name="resume",
+                    classes="log-button log-resume"
+                )
 
-            # if not self.active:
-            yield Button(
-                "Fill",
-                name="fill",
-                classes="log-button log-fill"
-            )
+                yield Button(
+                    "Clone",
+                    name="clone",
+                    classes="log-button log-clone"
+                )
 
-            # yield Button(
-            #     "Edit",
-            #     name="edit",
-            #     classes="log-button log-edit"
-            # )
-            yield Button(
-                "Delete",
-                name="delete",
-                classes="log-button log-delete"
-            )
+                # if not self.active:
+                yield Button(
+                    "Fill",
+                    name="fill",
+                    classes="log-button log-fill"
+                )
+
+                # yield Button(
+                #     "Edit",
+                #     name="edit",
+                #     classes="log-button log-edit"
+                # )
+                yield Button(
+                    "Delete",
+                    name="delete",
+                    classes="log-button log-delete"
+                )
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Event handler called when a button is pressed."""

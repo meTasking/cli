@@ -54,12 +54,15 @@ class LogList(ScrollableContainer):
         self.read_only_mode = read_only_mode
         super().__init__(classes="container-logs-wrapper", **kwargs)
         self.add_class("container-logs-wrapper-empty")
+        self.loading = True
 
     def on_show(self) -> None:
         if not self._initial_load_done:
             self.reload_logs()
 
     def reload_logs(self) -> None:
+        self.loading = True
+
         self._initial_load_done = True
         self.logs_reached_end = False
         self.logs_offset = 0
@@ -73,6 +76,9 @@ class LogList(ScrollableContainer):
         reached_end: bool,
         logs: list[dict[str, Any]]
     ) -> None:
+        if self.loading:
+            self.loading = False
+
         if at_offset != self.logs_offset:
             # Race condition - ignore
             return

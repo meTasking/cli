@@ -36,7 +36,7 @@ class EditableText(Static, can_focus=True):
         self.update_text(text)
 
     def update_text(self, text: str | None) -> None:
-        if text == self.text:
+        if text == self.saved_text:
             return
 
         self.text = text
