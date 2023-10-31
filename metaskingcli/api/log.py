@@ -111,9 +111,13 @@ async def stop_active(server: str, **kwargs) -> dict:
     return await stop(server, None, **kwargs)
 
 
-async def stop(server: str, log_id: int | None, **kwargs) -> dict:
-    if log_id is not None:
-        log_name = f"{log_id}"
+async def stop(
+    server: str,
+    dynamic_log_id: int | None = None,
+    **kwargs
+) -> dict:
+    if dynamic_log_id is not None:
+        log_name = f"{dynamic_log_id}"
     else:
         log_name = "active"
     url = f"{server}/api/{API_VERSION}/log/{log_name}/stop"
@@ -137,8 +141,8 @@ async def pause(server: str, log_id: int | None, **kwargs) -> dict:
             return await handle_response(response)
 
 
-async def resume(server: str, log_id: int, **kwargs) -> dict:
-    url = f"{server}/api/{API_VERSION}/log/{log_id}/resume"
+async def resume(server: str, dynamic_log_id: int, **kwargs) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/{dynamic_log_id}/resume"
     async with aiohttp.ClientSession() as session:
         async with session.post(url, params=kwargs) as response:
             return await handle_response(response)
@@ -153,9 +157,9 @@ async def get_active(server: str) -> Optional[dict]:
         raise
 
 
-async def read(server: str, log_id: int | None) -> dict:
-    if log_id is not None:
-        log_name = f"{log_id}"
+async def read(server: str, dynamic_log_id: int | None = None) -> dict:
+    if dynamic_log_id is not None:
+        log_name = f"{dynamic_log_id}"
     else:
         log_name = "active"
     async with aiohttp.ClientSession() as session:
@@ -166,12 +170,12 @@ async def read(server: str, log_id: int | None) -> dict:
 
 async def update(
     server: str,
-    log_id: int,
+    dynamic_log_id: int,
     create_category: bool = False,
     create_task: bool = False,
     **kwargs,
 ) -> dict:
-    url = f"{server}/api/{API_VERSION}/log/{log_id}"
+    url = f"{server}/api/{API_VERSION}/log/{dynamic_log_id}"
     params = {
         "create-category": "true" if create_category else "false",
         "create-task": "true" if create_task else "false",
@@ -197,15 +201,26 @@ async def update_active(
             return await handle_response(response)
 
 
-async def delete(server: str, log_id: int) -> dict:
-    url = f"{server}/api/{API_VERSION}/log/{log_id}"
+async def delete(server: str, dynamic_log_id: int) -> dict:
+    url = f"{server}/api/{API_VERSION}/log/{dynamic_log_id}"
     async with aiohttp.ClientSession() as session:
         async with session.delete(url) as response:
             return await handle_response(response)
 
 
-async def split(server: str, log_id: int, at: datetime.datetime) -> list[dict]:
-    url = f"{server}/api/{API_VERSION}/log/{log_id}/split"
+async def split(
+    server: str,
+    dynamic_log_id: int,
+    at: datetime.datetime
+) -> list[dict]:
+    url = f"{server}/api/{API_VERSION}/log/{dynamic_log_id}/split"
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json={"at": at.isoformat()}) as response:
+            return await handle_response(response)
+
+
+async def merge(server: str, log_id: int, with_log_id: int) -> list[dict]:
+    url = f"{server}/api/{API_VERSION}/log/{log_id}/merge/{with_log_id}"
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url) as response:
             return await handle_response(response)
