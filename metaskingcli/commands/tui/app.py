@@ -307,9 +307,13 @@ class MeTaskingTui(App):
         if percentage is None:
             return
 
+        sign = 1 if percentage >= 0.5 else -1
+
         offset = percentage - 0.5  # -0.5 ~ 0.5
         offset *= 60  # -30 ~ 30
-        seconds = offset ** 3  # -27000 ~ 27000
+        offset += 5 * sign  # -35 ~ -5, 5 ~ 35
+        seconds = offset ** 3  # -42875 ~ -125, 125 ~ 42875 (exponential)
+        seconds -= 125 * sign  # -42750 ~ 42750 (exponential)
 
         self.time_adjust = timedelta(seconds=seconds)
 
