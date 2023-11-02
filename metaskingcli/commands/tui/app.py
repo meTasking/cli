@@ -231,7 +231,7 @@ class MeTaskingTui(App):
             yield Button("Reset", name="reset-time-adjust")
 
         with TabbedContent(id="container-tabs"):
-            with TabPane("Logs"):
+            with TabPane("Logs", name="logs", id="tab-logs"):
                 with Container(
                     id="container-logs",
                     # classes="container-top",
@@ -289,14 +289,14 @@ class MeTaskingTui(App):
                                 id="container-stopped-logs-inner",
                             )
 
-            with TabPane("Calendar"):
+            with TabPane("Calendar", name="calendar", id="tab-calendar"):
                 yield WorkLogCalendar(
                     server=self._server,
                     id="container-calendar",
                     # classes="container-top",
                 )
 
-            with TabPane("Report"):
+            with TabPane("Report", name="report", id="tab-report"):
                 yield WorkLogReport(
                     server=self._server,
                     id="container-report",
@@ -341,12 +341,14 @@ class MeTaskingTui(App):
 
     def action_refresh(self) -> None:
         """An action to refresh data."""
-        for log_list in self.query(LogList).results():
-            log_list.reload_logs()
-        for calendar in self.query(WorkLogCalendar).results():
-            calendar.refresh_data()
-        for report in self.query(WorkLogReport).results():
-            report.refresh_data()
+        match self.query_one(TabbedContent).active:
+            case "tab-logs":
+                for log_list in self.query(LogList).results():
+                    log_list.reload_logs()
+            case "tab-calendar":
+                self.query_one(WorkLogCalendar).refresh_data()
+            case "tab-report":
+                self.query_one(WorkLogReport).refresh_data()
 
     async def action_delete(self) -> None:
         """An action to delete active log."""
