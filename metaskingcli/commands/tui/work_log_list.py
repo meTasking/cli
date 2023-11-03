@@ -16,10 +16,12 @@ from .work_log import WorkLog
 class LogList(ScrollableContainer):
 
     DEFAULT_CSS = """
-    .no-logs {
+    LogList > .no-logs {
         display: none;
+        width: 100%;
+        content-align: center middle;
     }
-    .container-logs-wrapper-empty .no-logs {
+    LogList.container-logs-wrapper-empty > .no-logs {
         display: block;
     }
 
@@ -76,9 +78,6 @@ class LogList(ScrollableContainer):
         reached_end: bool,
         logs: list[dict[str, Any]]
     ) -> None:
-        if self.loading:
-            self.loading = False
-
         if at_offset != self.logs_offset:
             # Race condition - ignore
             return
@@ -108,6 +107,9 @@ class LogList(ScrollableContainer):
 
         if len(widgets_list) != 0:
             self.remove_class("container-logs-wrapper-empty")
+
+        if self.loading:
+            self.loading = False
 
         # Check if enough logs were loaded
         self.call_after_refresh(self.check_load_more_logs)
