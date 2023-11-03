@@ -15,5 +15,5 @@ def split_hours(hours: float | None) -> dict[str, str]:
         'hours': f"{math.floor(hours):03d}",
         'minutes': f"{math.floor((hours * 60.0) % 60.0):02d}",
         'seconds': f"{math.floor((hours * 3600.0) % 60.0):02d}",
-        'milliseconds': f"{math.floor((hours * 3600000.0) % 1000.0):04.0f}",
+        'milliseconds': f"{math.floor((hours * 3600000.0) % 1000.0):03.0f}",
     }

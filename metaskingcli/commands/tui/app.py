@@ -16,7 +16,6 @@ from textual.widgets import (
     Button,
 )
 
-from metaskingcli.utils import split_hours
 from metaskingcli.api.log import (
     stop_all,
     stop_active,
@@ -28,6 +27,7 @@ from metaskingcli.api.log import (
 )
 
 from .slider import Slider
+from .offset_time import OffsetTime
 from .scrollable_auto_load import AutoLoadScrollableContainer
 from .work_log_list import LogList
 from .calendar import WorkLogCalendar
@@ -147,12 +147,6 @@ class MeTaskingTui(App):
         height: 3;
     }
 
-    #label-time-adjust {
-        content-align: center middle;
-        width: 17;
-        height: 3;
-    }
-
     #container-tabs {
         width: 100%;
         height: 1fr;
@@ -227,7 +221,7 @@ class MeTaskingTui(App):
                 init=False,
             )
 
-            yield Static(" +000:00:00.0000", id="label-time-adjust")
+            yield OffsetTime(id="label-time-adjust")
             yield Button("Reset", name="reset-time-adjust")
 
         with TabbedContent(id="container-tabs"):
@@ -315,19 +309,13 @@ class MeTaskingTui(App):
         seconds = offset ** 3  # -42875 ~ -125, 125 ~ 42875 (exponential)
         seconds -= 125 * sign  # -42750 ~ 42750 (exponential)
 
-        self.time_adjust = timedelta(seconds=seconds)
+        time_adjust = timedelta(seconds=seconds)
+        self.time_adjust = time_adjust
 
-        hours = seconds / 3600
-        components = split_hours(abs(hours))
-
-        label: Static = self.query_one("#label-time-adjust")  # type: ignore
-        label.update(
-            f" {'-' if hours < 0 else '+'}" +
-            f"{components['hours']}:" +
-            f"{components['minutes']}:" +
-            f"{components['seconds']}." +
-            f"{components['milliseconds']}"
-        )
+        label: OffsetTime = self.query_one(
+            "#label-time-adjust"
+        )  # type: ignore
+        label.time_offset = time_adjust
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Event handler called when a button is pressed."""
