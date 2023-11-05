@@ -9,6 +9,7 @@ from .list import execute as cmd_list
 from .report import execute as cmd_report
 from .delete import execute as cmd_delete
 from .edit import execute as cmd_edit
+from .set import execute as cmd_set
 
 __all__ = [
     "cmd_tui",
@@ -22,4 +23,5 @@ __all__ = [
     "cmd_report",
     "cmd_delete",
     "cmd_edit",
+    "cmd_set",
 ]

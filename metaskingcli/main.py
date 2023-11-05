@@ -14,6 +14,7 @@ from .commands import (
     cmd_report,
     cmd_delete,
     cmd_edit,
+    cmd_set,
 )
 
 root_log = logging.getLogger()
@@ -68,5 +69,9 @@ async def main():
         code = await cmd_delete(args)
     elif args.edit:
         code = await cmd_edit(args)
+    elif args.set:
+        code = await cmd_set(args)
+    else:
+        parser.print_help()
 
     sys.exit(code)

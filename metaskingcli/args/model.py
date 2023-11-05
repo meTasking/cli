@@ -285,6 +285,7 @@ class ReportCmd(BaseModel):
 class DeleteCmd(BaseModel):
     _description = "Delete log"
     id: Optional[int] = Field(
+        default=None,
         description="Id of log to delete (default: last log)",
     )
 
@@ -292,6 +293,7 @@ class DeleteCmd(BaseModel):
 class EditCmd(BaseModel):
     _description = "Edit log"
     id: Optional[int] = Field(
+        default=None,
         description="Id of log to edit (default: active log)",
     )
     editor: str = Field(
@@ -299,6 +301,34 @@ class EditCmd(BaseModel):
         description=(
             "Editor to use (default: $EDITOR environment variable or nano)"
         ),
+    )
+
+
+class SetCmd(BaseModel):
+    _description = (
+        "Start properties of work log"
+    )
+
+    id: int = Field(
+        description="Id of log to edit (default: active log)",
+    )
+
+    name: Optional[str] = Field(
+        default=None,
+        description="Name of log",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Description of log",
+    )
+
+    task: Optional[str] = Field(
+        default=None,
+        description="Name of task to assign the log to",
+    )
+    category: Optional[str] = Field(
+        default=None,
+        description="Name of category to assign the log to",
     )
 
 
@@ -347,6 +377,9 @@ class CliArgs(BaseModel):
     )
     edit: Optional[EditCmd] = Field(
         description=EditCmd._description,
+    )
+    set: Optional[SetCmd] = Field(
+        description=SetCmd._description,
     )
 
     class Config:
