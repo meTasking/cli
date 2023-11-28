@@ -296,6 +296,10 @@ class EditCmd(BaseModel):
         default=None,
         description="Id of log to edit (default: active log)",
     )
+    force: bool = Field(
+        default=False,
+        description="Don't ask for confirmation before deleting records",
+    )
     editor: str = Field(
         default=os.environ.get("EDITOR", "nano"),
         description=(

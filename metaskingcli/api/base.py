@@ -1,6 +1,9 @@
 import aiohttp
 
 
+API_VERSION = "v1"
+
+
 # class HTTPErrorBody(requests.exceptions.HTTPError):
 #     # We want to see the reason of the error, which is returned in the
 #     # response body

@@ -4,6 +4,7 @@ import subprocess
 
 from metaskingcli.args import CliArgs
 from metaskingcli.api.log import read, update
+from metaskingcli.api.record import delete as delete_record
 
 
 def edit_file(editor_cmd: str, filename: str) -> None:
@@ -29,13 +30,19 @@ async def execute(args: CliArgs) -> int:
             flags.append(flag["name"])
         log["flags"] = flags
 
+    record_ids = [
+        record["id"] for record in log["records"]
+    ]
+
     # Dump the log to yaml and allow the user to edit it
     with tempfile.NamedTemporaryFile(mode="w+", suffix='.yml') as f:
-        yaml.dump(log, f)
+        y = yaml.YAML(typ="safe")
+        y.default_flow_style = False
+        y.dump(log, f)
         f.flush()
         edit_file(args.edit.editor, f.name)
         f.seek(0)
-        log = yaml.load(f, Loader=yaml.Loader)
+        log = y.load(f)
 
     # Postprocessing
     log_id = log["id"]
@@ -49,4 +56,22 @@ async def execute(args: CliArgs) -> int:
         create_task=True,
         **log
     )
+
+    # Delete records that are not in the edited log
+    new_record_ids = {
+        record["id"] for record in log["records"]
+    }
+    for record_id in record_ids:
+        if record_id in new_record_ids:
+            continue
+
+        # Ask the user for confirmation
+        if not args.edit.force:
+            print(f"Delete record {record_id}? [y/N] ", end="")
+            answer = input()
+            if answer.lower() != "y":
+                continue
+
+        # Delete the record
+        await delete_record(args.server, record_id)
     return 0

@@ -2,10 +2,7 @@ from typing import Any, Optional, AsyncGenerator
 import datetime
 import aiohttp
 
-from .base import handle_response
-
-
-API_VERSION = "v1"
+from .base import handle_response, API_VERSION
 
 
 async def list_all(
