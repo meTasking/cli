@@ -1,3 +1,4 @@
+import sys
 import json
 import ruamel.yaml as yaml
 
@@ -16,9 +17,11 @@ async def execute(args: CliArgs) -> int:
         until=args.list.until,
     ):
         if args.list.format == OutputFormat.json:
-            print(json.dumps(log))
+            json.dump(log, sys.stdout)
         elif args.list.format == OutputFormat.yaml:
-            print(yaml.dump([log]))
+            y = yaml.YAML(typ="safe")
+            y.default_flow_style = False
+            y.dump([log], sys.stdout)
         else:
             time_range = ""
             if len(log['records']) > 0:
