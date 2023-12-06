@@ -229,8 +229,8 @@ class WorkLogReportDay(Horizontal):
             next_month = self.day.month + 1
             day_until = datetime.combine(
                 date(
-                    self.day.year + (next_month // 12),
-                    next_month % 12,
+                    self.day.year + ((next_month-1) // 12),
+                    (next_month-1) % 12 + 1,
                     1
                 ) - timedelta(days=1),
                 time.max
@@ -306,8 +306,8 @@ class WorkLogReport(ScrollableContainer):
     def month_end(self) -> date:
         next_month = self.month_start.month + 1
         return date(
-            self.month_start.year + (next_month // 12),
-            next_month % 12,
+            self.month_start.year + ((next_month-1) // 12),
+            (next_month-1) % 12 + 1,
             1,
         ) - timedelta(days=1)
 
@@ -350,16 +350,17 @@ class WorkLogReport(ScrollableContainer):
 
         button_name = event.button.name
         if button_name == "previous":
+            previous_month = self.month_start.month - 1
             self.month_start = date(
-                self.month_start.year,
-                self.month_start.month - 1,
+                self.month_start.year + ((previous_month-1) // 12),
+                (previous_month-1) % 12 + 1,
                 1,
             )
         elif button_name == "next":
             next_month = self.month_start.month + 1
             self.month_start = date(
-                self.month_start.year + (next_month // 12),
-                next_month % 12,
+                self.month_start.year + ((next_month-1) // 12),
+                (next_month-1) % 12 + 1,
                 1,
             )
         elif button_name == "today":
