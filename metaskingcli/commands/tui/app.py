@@ -261,6 +261,7 @@ class MeTaskingTui(App):
                                 server=self._server,
                                 only_active=False,
                                 filters={"stopped": False},
+                                paging=False,
                                 reload_all_logs=self.action_refresh,
                                 read_only_mode=self._read_only_mode,
                                 id="container-non-stopped-logs-inner",

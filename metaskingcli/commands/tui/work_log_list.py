@@ -8,6 +8,7 @@ from textual.widgets import Static
 from metaskingcli.api.log import (
     get_active,
     list_page,
+    list_all,
 )
 
 from .work_log import WorkLog
@@ -37,6 +38,7 @@ class LogList(ScrollableContainer):
     logs_server: str
     logs_only_active: bool | None = None
     logs_filters: Mapping[str, Any] = {}
+    logs_paging: bool = True
     logs_reached_end: bool = False
     logs_offset: int = 0
 
@@ -45,6 +47,7 @@ class LogList(ScrollableContainer):
         server: str,
         only_active: bool | None = None,
         filters: Mapping[str, Any] | None = None,
+        paging: bool = True,
         reload_all_logs: Callable[[], None] | None = None,
         read_only_mode: bool = False,
         **kwargs
@@ -52,6 +55,7 @@ class LogList(ScrollableContainer):
         self.logs_server = server
         self.logs_only_active = only_active
         self.logs_filters = filters or {}
+        self.logs_paging = paging
         self.reload_all_logs = reload_all_logs or self.reload_logs
         self.read_only_mode = read_only_mode
         super().__init__(classes="container-logs-wrapper", **kwargs)
@@ -132,14 +136,24 @@ class LogList(ScrollableContainer):
                 logs.append(active_log)
             reached_end = True
         else:
-            logs = await list_page(
-                self.logs_server,
-                offset=self.logs_offset,
-                limit=limit,
-                **self.logs_filters
-            )
-            if len(logs) < limit:
+            if not self.logs_paging:
+                assert self.logs_offset == 0
+                logs = [
+                    log async for log in list_all(
+                        self.logs_server,
+                        **self.logs_filters
+                    )
+                ]
                 reached_end = True
+            else:
+                logs = await list_page(
+                    self.logs_server,
+                    offset=self.logs_offset,
+                    limit=limit,
+                    **self.logs_filters
+                )
+                if len(logs) < limit:
+                    reached_end = True
 
         self.call_after_refresh(self._add_logs, offset, reached_end, logs)
 
