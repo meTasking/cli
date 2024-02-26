@@ -58,8 +58,8 @@ class RangeBar:
             start *= width
             end *= width
 
-            start = max(start, 0)
-            end = min(end, width)
+            start = min(max(start, 0), width)
+            end = min(max(end, 0), width)
 
             underflow = start % 1
             overflow = end % 1
