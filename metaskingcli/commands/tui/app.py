@@ -26,6 +26,7 @@ from metaskingcli.api.log import (
     delete,
 )
 
+from .editable import EditableText
 from .slider import Slider
 from .offset_time import OffsetTime
 from .scrollable_auto_load import AutoLoadScrollableContainer
@@ -127,7 +128,7 @@ class MeTaskingTui(App):
         border-bottom: solid darkgray;
     }
 
-    #container-time-adjust {
+    #container-header {
         width: 100%;
         height: 4;
         padding-left: 1;
@@ -135,16 +136,60 @@ class MeTaskingTui(App):
         border-bottom: solid darkgray;
     }
 
-    #header-time-adjust {
-        content-align: center middle;
-        width: 13;
+    #container-modifiers {
+        width: 1fr;
         height: 3;
+    }
+
+    #container-filter-category {
+        width: 1fr;
+        height: 1;
+    }
+
+    #text-filter-category {
+        content-align: left middle;
+        width: 13;
+        height: 1;
+    }
+
+    .filter-category {
+        height: 1;
+        width: auto;
+        color: cyan;
+    }
+
+    #container-filter-task {
+        width: 1fr;
+        height: 1;
+    }
+
+    #text-filter-task {
+        content-align: left middle;
+        width: 13;
+        height: 1;
+    }
+
+    .filter-task {
+        height: 1;
+        width: auto;
+        color: yellow;
+    }
+
+    #container-time-adjust {
+        width: 1fr;
+        height: 1;
+    }
+
+    #text-time-adjust {
+        content-align: left middle;
+        width: 13;
+        height: 1;
     }
 
     #slider-time-adjust {
         content-align: center middle;
         width: 1fr;
-        height: 3;
+        height: 1;
     }
 
     #container-tabs {
@@ -184,6 +229,8 @@ class MeTaskingTui(App):
     _read_only_mode: bool
 
     time_adjust: timedelta
+    category: str | None = None
+    task: str | None = None
 
     @property
     def time_adjust_params(self) -> dict[str, Any]:
@@ -191,15 +238,30 @@ class MeTaskingTui(App):
             'adjust-time': self.time_adjust.total_seconds(),
         }
 
+    @property
+    def filter_params(self) -> dict[str, Any]:
+        return {
+            'category': self.category,
+            'task': self.task,
+        }
+
     COMMANDS = {
         SystemCommands,
         MeTaskingTuiCommands,
     }
 
-    def __init__(self, server: str, read_only_mode: bool) -> None:
+    def __init__(
+        self,
+        server: str,
+        read_only_mode: bool,
+        category: str | None = None,
+        task: str | None = None,
+    ) -> None:
         self._server = server
         self._read_only_mode = read_only_mode
         self.time_adjust = timedelta()
+        self.category = category
+        self.task = task
         super().__init__()
 
     # def on_mount(self) -> None:
@@ -209,17 +271,37 @@ class MeTaskingTui(App):
         yield Header(show_clock=True)
         yield Footer()
 
-        with Horizontal(id="container-time-adjust"):
-            yield Static("Time adjust: ", id="header-time-adjust")
+        with Horizontal(id="container-header"):
+            with Container(id="container-modifiers"):
+                with Horizontal(id="container-time-adjust"):
+                    yield Static("Time adjust: ", id="text-time-adjust")
 
-            slider = Slider(progress=0.5, id="slider-time-adjust")
-            yield slider
-            self.watch(
-                slider,
-                "percentage",
-                self.time_adjust_update,
-                init=False,
-            )
+                    slider = Slider(progress=0.5, id="slider-time-adjust")
+                    yield slider
+                    self.watch(
+                        slider,
+                        "percentage",
+                        self.time_adjust_update,
+                        init=False,
+                    )
+                with Horizontal(id="container-filter-category"):
+                    yield Static("Category: ", id="text-filter-category")
+
+                    yield EditableText(
+                        text=self.category,
+                        fallback_text="Default",
+                        save_callback=self.filter_category,
+                        classes="filter-category"
+                    )
+                with Horizontal(id="container-filter-task"):
+                    yield Static("Task: ", id="text-filter-task")
+
+                    yield EditableText(
+                        text=self.task,
+                        fallback_text="Default",
+                        save_callback=self.filter_task,
+                        classes="filter-task"
+                    )
 
             yield OffsetTime(id="label-time-adjust")
             yield Button("Reset", name="reset-time-adjust")
@@ -298,6 +380,14 @@ class MeTaskingTui(App):
                     # classes="container-top",
                 )
 
+    def filter_category(self, category: str | None) -> None:
+        self.category = category
+        self.call_after_refresh(self.action_refresh)
+
+    def filter_task(self, task: str | None) -> None:
+        self.task = task
+        self.call_after_refresh(self.action_refresh)
+
     def time_adjust_update(self, percentage: float | None) -> None:
         if percentage is None:
             return
@@ -351,7 +441,15 @@ class MeTaskingTui(App):
 
     async def action_next(self) -> None:
         """An action to stop active log and start new one."""
-        await next(self._server, self.time_adjust_params)
+        await next(
+            self._server,
+            {
+                "create-category": "true",
+                "create-task": "true",
+                **self.time_adjust_params,
+            },
+            **self.filter_params
+        )
         self.call_after_refresh(self.action_refresh)
 
     async def action_pause(self) -> None:
@@ -366,7 +464,15 @@ class MeTaskingTui(App):
 
     async def action_start(self) -> None:
         """An action to start new log and pause active one."""
-        await start(self._server, self.time_adjust_params)
+        await start(
+            self._server,
+            {
+                "create-category": "true",
+                "create-task": "true",
+                **self.time_adjust_params,
+            },
+            **self.filter_params
+        )
         self.call_after_refresh(self.action_refresh)
 
     async def action_stop(self) -> None:
@@ -376,7 +482,11 @@ class MeTaskingTui(App):
 
     async def action_stop_all(self) -> None:
         """An action to stop all logs."""
-        await stop_all(self._server, **self.time_adjust_params)
+        await stop_all(
+            self._server,
+            **self.time_adjust_params,
+            **self.filter_params
+        )
         self.call_after_refresh(self.action_refresh)
 
     def action_more(self) -> None:
@@ -399,14 +509,19 @@ class MeTaskingTui(App):
         #     self.call_after_refresh(self.scroll_end_callback)
 
 
-def init_app(server: str, read_only_mode: bool) -> MeTaskingTui:
+def init_app(
+    server: str,
+    read_only_mode: bool,
+    category: str | None,
+    task: str | None
+) -> MeTaskingTui:
     if read_only_mode:
         class MeTaskingTuiReadOnly(MeTaskingTui):
             BINDINGS = [
                 Binding("r", "refresh", "Refresh"),
             ]
 
-        return MeTaskingTuiReadOnly(server, True)
+        return MeTaskingTuiReadOnly(server, True, category, task)
     else:
         class MeTaskingTuiWritable(MeTaskingTui):
             BINDINGS = [
@@ -432,4 +547,4 @@ def init_app(server: str, read_only_mode: bool) -> MeTaskingTui:
                 # Binding("alt+m", "more", "Load more"),
             ]
 
-        return MeTaskingTuiWritable(server, False)
+        return MeTaskingTuiWritable(server, False, category, task)

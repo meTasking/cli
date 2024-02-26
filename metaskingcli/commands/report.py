@@ -20,6 +20,8 @@ async def execute(args: CliArgs) -> int:
 
     async for log in list_all(
         args.server,
+        category=args.report.category,
+        task=args.report.task,
         flags=args.report.flags,
         since=args.report.since,
         until=args.report.until,

@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, TYPE_CHECKING
 from datetime import datetime, timedelta, date, time
 
 from textual import work
@@ -11,6 +11,9 @@ from metaskingcli.utils import split_hours
 from metaskingcli.api.log import (
     list_all,
 )
+
+if TYPE_CHECKING:
+    from .app import MeTaskingTui
 
 
 HOUR_SECONDS = 60.0 * 60.0
@@ -184,11 +187,14 @@ class WorkLogReportDay(Horizontal):
     ) -> AsyncGenerator[float, None]:
         total = 0.0
 
+        app: "MeTaskingTui" = self.app  # type: ignore
+
         async for log in list_all(
             self.logs_server,
             since=since,
             until=until,
             page_limit=20,
+            **app.filter_params,
         ):
             for record in log['records']:
                 start_time = datetime.fromisoformat(record['start'])

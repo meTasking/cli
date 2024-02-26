@@ -13,6 +13,8 @@ async def execute(args: CliArgs) -> int:
         args.server,
         flags=args.list.flags,
         order=args.list.order,
+        category=args.list.category,
+        task=args.list.task,
         since=args.list.since,
         until=args.list.until,
     ):

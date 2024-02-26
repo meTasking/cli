@@ -1,4 +1,5 @@
 import math
+from typing import TYPE_CHECKING
 from datetime import datetime, timedelta, date, time
 from functools import partial
 from enum import Enum
@@ -14,6 +15,9 @@ from textual.widget import Widget
 from metaskingcli.api.log import (
     list_all,
 )
+
+if TYPE_CHECKING:
+    from .app import MeTaskingTui
 
 DARK_BACKGROUND_FALLBACK = "grey27"
 DARK_BACKGROUND_OPTIONS = [
@@ -400,11 +404,14 @@ class WorkLogCalendarDay(Widget):
         since = datetime.combine(self.day, time.min)
         until = datetime.combine(self.day, time.max)
 
+        app: "MeTaskingTui" = self.app  # type: ignore
+
         async for log in list_all(
             self.logs_server,
             since=since,
             until=until,
             page_limit=20,
+            **app.filter_params,
         ):
             for record in log['records']:
                 start_time = datetime.fromisoformat(record['start'])

@@ -28,6 +28,15 @@ class TuiCmd(BaseModel):
         ),
     )
 
+    category: Optional[str] = Field(
+        default=None,
+        description="only show logs with this category",
+    )
+    task: Optional[str] = Field(
+        default=None,
+        description="only show logs with this task",
+    )
+
 
 class StartCmd(BaseModel):
     _description = (
@@ -222,6 +231,15 @@ class ListCmd(BaseModel):
         description="only show logs until this date",
     )
 
+    category: Optional[str] = Field(
+        default=None,
+        description="only show logs with this category",
+    )
+    task: Optional[str] = Field(
+        default=None,
+        description="only show logs with this task",
+    )
+
     flags: Optional[list[str]] = Field(
         default=None,
         description="only show logs with these flags",
@@ -260,6 +278,15 @@ class ReportCmd(BaseModel):
     until: Optional[datetime] = Field(
         default=None,
         description="only use logs until this date",
+    )
+
+    category: Optional[str] = Field(
+        default=None,
+        description="only use logs with this category",
+    )
+    task: Optional[str] = Field(
+        default=None,
+        description="only use logs with this task",
     )
 
     flags: Optional[list[str]] = Field(

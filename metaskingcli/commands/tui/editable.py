@@ -182,6 +182,13 @@ class EditableText(Static, can_focus=True):
 
         self.cursor = len(text)
 
+    def key_ctrl_delete(self) -> None:
+        if self.text is None:
+            return
+
+        self.text = None
+        self.cursor = 0
+
     def on_key(self, event: Key) -> None:
         if event.character is None or not event.is_printable:
             return

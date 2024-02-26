@@ -1,4 +1,4 @@
-from typing import Any, Callable, Mapping, Iterable
+from typing import Any, Callable, Mapping, Iterable, TYPE_CHECKING
 
 from textual import work
 from textual.app import ComposeResult
@@ -12,6 +12,9 @@ from metaskingcli.api.log import (
 )
 
 from .work_log import WorkLog
+
+if TYPE_CHECKING:
+    from .app import MeTaskingTui
 
 
 class LogList(ScrollableContainer):
@@ -136,12 +139,14 @@ class LogList(ScrollableContainer):
                 logs.append(active_log)
             reached_end = True
         else:
+            app: "MeTaskingTui" = self.app  # type: ignore
             if not self.logs_paging:
                 assert self.logs_offset == 0
                 logs = [
                     log async for log in list_all(
                         self.logs_server,
-                        **self.logs_filters
+                        **self.logs_filters,
+                        **app.filter_params,
                     )
                 ]
                 reached_end = True
@@ -150,7 +155,8 @@ class LogList(ScrollableContainer):
                     self.logs_server,
                     offset=self.logs_offset,
                     limit=limit,
-                    **self.logs_filters
+                    **self.logs_filters,
+                    **app.filter_params,
                 )
                 if len(logs) < limit:
                     reached_end = True

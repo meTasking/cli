@@ -9,6 +9,8 @@ async def list_all(
     server: str,
     category_id: int | None = None,
     task_id: int | None = None,
+    category: str | None = None,
+    task: str | None = None,
     stopped: bool | None = None,
     flags: list[str] | None = None,
     order: str | None = None,
@@ -25,6 +27,8 @@ async def list_all(
             limit=page_limit,
             category_id=category_id,
             task_id=task_id,
+            category=category,
+            task=task,
             stopped=stopped,
             flags=flags,
             order=order,
@@ -44,6 +48,8 @@ async def list_page(
     limit: int = 100,
     category_id: int | None = None,
     task_id: int | None = None,
+    category: str | None = None,
+    task: str | None = None,
     stopped: bool | None = None,
     flags: list[str] | None = None,
     order: str | None = None,
@@ -59,6 +65,10 @@ async def list_page(
         params["category_id"] = category_id
     if task_id is not None:
         params["task_id"] = task_id
+    if category is not None:
+        params["category"] = category
+    if task is not None:
+        params["task"] = task
     if stopped is not None:
         params["stopped"] = "true" if stopped else "false"
     if flags is not None:
