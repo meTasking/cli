@@ -1,5 +1,6 @@
 import sys
 import json
+from datetime import datetime
 import ruamel.yaml as yaml
 
 from metaskingcli.args import CliArgs, OutputFormat
@@ -17,8 +18,19 @@ async def execute(args: CliArgs) -> int:
         y.dump([log], sys.stdout)
     else:
         time_range = ""
+        time_spent = 0
         if len(log['records']) > 0:
             time_range = f" ({log['records'][0]['start']} " + \
                 f"- {log['records'][-1]['end']})"
-        print(f"{log['id']}{time_range}: {log['name']}: {log['description']}")
+
+        for record in log['records']:
+            if record['end'] is not None:
+                start = datetime.fromisoformat(record['start'])
+                end = datetime.fromisoformat(record['end'])
+                time_spent += (end - start).total_seconds() / 3600.0
+
+        print(
+            f"{log['id']} {time_spent:.2f}h{time_range}: " +
+            f"{log['name']}: {log['description']}"
+        )
     return 0
