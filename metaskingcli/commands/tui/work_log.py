@@ -228,6 +228,8 @@ class WorkLog(Widget):
         def get_activity_range(
             record: dict[str, Any]
         ) -> tuple[float, float]:
+            if duration == 0:
+                return (0, 1)
             start_time = datetime.fromisoformat(record['start'])
             start = (start_time - log_start).total_seconds() / duration
             if record['end'] is None:
