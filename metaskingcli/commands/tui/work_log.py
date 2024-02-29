@@ -153,12 +153,19 @@ class WorkLog(Widget):
     WorkLog .log-delete {
         background: $error;
     }
+
+    WorkLog .log-menu {
+        background: darkgray;
+        width: 5;
+        max-width: 5;
+    }
     """
 
     _refresh_app: Callable[[], None]
     _logs_server: str
     _read_only_mode: bool
     _log: reactive[dict[str, Any] | None] = reactive(None)
+    _menu_visible: reactive[bool] = reactive(False)
 
     _is_mounted: bool = False
 
@@ -189,6 +196,9 @@ class WorkLog(Widget):
     def on_mount(self) -> None:
         self._is_mounted = True
         self.call_after_refresh(self._update_content)
+
+    def watch__menu_visible(self, visible: bool) -> None:
+        self._update_content()
 
     def watch__log(self, log: dict[str, Any] | None) -> None:
         self.start_date = "No records"
@@ -379,23 +389,28 @@ class WorkLog(Widget):
             for button in buttons.nodes:
                 button.display = False
         else:
-            button_stop: Button = self.query_one(".log-stop")  # type: ignore
             button_pause: Button = self.query_one(".log-pause")  # type: ignore
             button_resume: Button = self.query_one(
                 ".log-resume"
             )  # type: ignore
+            button_stop: Button = self.query_one(".log-stop")  # type: ignore
             button_clone: Button = self.query_one(".log-clone")  # type: ignore
             button_fill: Button = self.query_one(".log-fill")  # type: ignore
             button_delete: Button = self.query_one(
                 ".log-delete"
             )  # type: ignore
+            button_menu: Button = self.query_one(".log-menu")  # type: ignore
 
-            button_stop.display = not self._log['stopped']
             button_pause.display = self.active
             button_resume.display = not self.active
-            button_clone.display = True
-            button_fill.display = not self.active
-            button_delete.display = True
+            button_stop.display = (
+                self._menu_visible and not self._log['stopped']
+            )
+            button_clone.display = self._menu_visible
+            button_fill.display = self._menu_visible and not self.active
+            button_delete.display = self._menu_visible
+            button_menu.display = True
+            button_menu.label = ">" if self._menu_visible else "<"
 
         self.query_one(LoadingIndicator).display = False
 
@@ -443,13 +458,6 @@ class WorkLog(Widget):
                 # if self._read_only_mode:
                 #     return
 
-                # if not self._log['stopped']:
-                yield Button(
-                    "Stop",
-                    name="stop",
-                    classes="log-button log-stop"
-                )
-
                 # if self.active:
                 yield Button(
                     "Pause",
@@ -461,6 +469,13 @@ class WorkLog(Widget):
                     "Resume",
                     name="resume",
                     classes="log-button log-resume"
+                )
+
+                # if not self._log['stopped']:
+                yield Button(
+                    "Stop",
+                    name="stop",
+                    classes="log-button log-stop"
                 )
 
                 yield Button(
@@ -485,6 +500,12 @@ class WorkLog(Widget):
                     "Delete",
                     name="delete",
                     classes="log-button log-delete"
+                )
+
+                yield Button(
+                    "<",
+                    name="menu",
+                    classes="log-button log-menu"
                 )
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -551,5 +572,8 @@ class WorkLog(Widget):
             pass
         elif button_name == "delete":
             await delete(self._logs_server, self._log['id'])
+        elif button_name == "menu":
+            self._menu_visible = not self._menu_visible
+            return
 
         self._refresh_app()
