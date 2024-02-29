@@ -240,10 +240,12 @@ class MeTaskingTui(App):
 
     @property
     def filter_params(self) -> dict[str, Any]:
-        return {
-            'category': self.category,
-            'task': self.task,
-        }
+        params = {}
+        if self.category is not None:
+            params['category'] = self.category
+        if self.task is not None:
+            params['task'] = self.task
+        return params
 
     COMMANDS = {
         SystemCommands,
