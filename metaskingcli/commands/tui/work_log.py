@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from .app import MeTaskingTui
 
 
+HOUR_SECONDS = 60.0 * 60.0
+
+
 class WorkLog(Widget):
     """A widget that displays a work log."""
 
@@ -174,6 +177,7 @@ class WorkLog(Widget):
     start_time: str
     end_time: str
     activity_ranges: list[tuple[float, float]]
+    total: float
     active: bool
 
     def __init__(
@@ -206,6 +210,7 @@ class WorkLog(Widget):
         self.start_time = "--:--:--"
         self.end_time = "--:--:--"
         self.activity_ranges = []
+        self.total = 0
         self.active = False
 
         if log is None or len(log['records']) == 0:
@@ -234,6 +239,21 @@ class WorkLog(Widget):
         log_end_real = log_end if log['stopped'] else curr_time
 
         duration = (log_end_real - log_start).total_seconds()
+
+        self.total = 0
+        for record in log['records']:
+            start_time = datetime.fromisoformat(record['start'])
+            end_time = (
+                datetime.fromisoformat(record['end'])
+                if record['end'] is not None
+                else datetime.now()
+            )
+
+            if end_time < start_time:
+                continue  # Start time is in the future
+
+            spent_time = end_time - start_time
+            self.total += spent_time.total_seconds() / HOUR_SECONDS
 
         def get_activity_range(
             record: dict[str, Any]
@@ -364,7 +384,8 @@ class WorkLog(Widget):
         log_date: Static = self.query_one(".log-date")  # type: ignore
         log_date.update(date_str)
 
-        time_str = self.start_time + " - " + self.end_time
+        total_str = f"{self.total:03.2f}h"
+        time_str = self.start_time + " - " + self.end_time + " = " + total_str
         log_time: Static = self.query_one(".log-time")  # type: ignore
         log_time.update(time_str)
 
