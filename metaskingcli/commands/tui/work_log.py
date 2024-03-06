@@ -332,7 +332,7 @@ class WorkLog(Widget):
             self._log['id'],
             flags=(
                 flags.split(',')
-                if flags is not None
+                if flags is not None and len(flags) > 0
                 else []
             ),
         )
@@ -373,7 +373,7 @@ class WorkLog(Widget):
 
         log_flags: EditableText = self.query_one(".log-flags")  # type: ignore
         log_flags.update_text(
-            ','.join(self._log['flags'])
+            ','.join(map(lambda flag: flag['flag'], self._log['flags']))
             if self._log is not None
             else None
         )
