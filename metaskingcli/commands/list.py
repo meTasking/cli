@@ -15,6 +15,7 @@ async def execute(args: CliArgs) -> int:
         order=args.list.order,
         category=args.list.category,
         task=args.list.task,
+        description=args.list.description,
         since=args.list.since,
         until=args.list.until,
     ):

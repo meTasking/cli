@@ -145,6 +145,7 @@ class LogList(ScrollableContainer):
                 logs = [
                     log async for log in list_all(
                         self.logs_server,
+                        description=app.search,
                         **self.logs_filters,
                         **app.filter_params,
                     )
@@ -155,6 +156,7 @@ class LogList(ScrollableContainer):
                     self.logs_server,
                     offset=self.logs_offset,
                     limit=limit,
+                    description=app.search,
                     **self.logs_filters,
                     **app.filter_params,
                 )

@@ -130,7 +130,7 @@ class MeTaskingTui(App):
 
     #container-header {
         width: 100%;
-        height: 4;
+        height: 5;
         padding-left: 1;
         padding-right: 1;
         border-bottom: solid darkgray;
@@ -138,7 +138,7 @@ class MeTaskingTui(App):
 
     #container-modifiers {
         width: 1fr;
-        height: 3;
+        height: 4;
     }
 
     #container-filter-category {
@@ -173,6 +173,22 @@ class MeTaskingTui(App):
         height: 1;
         width: auto;
         color: yellow;
+    }
+
+    #container-filter-description {
+        width: 1fr;
+        height: 1;
+    }
+
+    #text-filter-description {
+        content-align: left middle;
+        width: 13;
+        height: 1;
+    }
+
+    .filter-description {
+        height: 1;
+        width: auto;
     }
 
     #container-time-adjust {
@@ -231,6 +247,7 @@ class MeTaskingTui(App):
     time_adjust: timedelta
     category: str | None = None
     task: str | None = None
+    search: str | None = None
 
     @property
     def time_adjust_params(self) -> dict[str, Any]:
@@ -304,6 +321,16 @@ class MeTaskingTui(App):
                         save_callback=self.filter_task,
                         classes="filter-task"
                     )
+                with Horizontal(id="container-filter-description"):
+                    yield Static("Search: ", id="text-filter-description")
+
+                    yield EditableText(
+                        text=self.search,
+                        fallback_text="All",
+                        save_callback=self.filter_search,
+                        classes="filter-description"
+                    )
+
 
             yield OffsetTime(id="label-time-adjust")
             yield Button("Reset", name="reset-time-adjust")
@@ -388,6 +415,10 @@ class MeTaskingTui(App):
 
     def filter_task(self, task: str | None) -> None:
         self.task = task
+        self.call_after_refresh(self.action_refresh)
+
+    def filter_search(self, search: str | None) -> None:
+        self.search = search
         self.call_after_refresh(self.action_refresh)
 
     def time_adjust_update(self, percentage: float | None) -> None:

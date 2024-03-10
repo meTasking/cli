@@ -240,6 +240,11 @@ class ListCmd(BaseModel):
         description="only show logs with this task",
     )
 
+    description: Optional[str] = Field(
+        default=None,
+        description="only show logs with description containing these words",
+    )
+
     flags: Optional[list[str]] = Field(
         default=None,
         description="only show logs with these flags",

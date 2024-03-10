@@ -193,6 +193,7 @@ class WorkLogReportDay(Horizontal):
             self.logs_server,
             since=since,
             until=until,
+            description=app.search,
             page_limit=20,
             **app.filter_params,
         ):
