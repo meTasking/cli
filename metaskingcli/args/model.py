@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 from dateutil import parser
-from pydantic import BaseModel, Field, validator
+from pydantic.v1 import BaseModel, Field, validator
 
 
 class OutputFormat(enum.Enum):
@@ -78,6 +78,8 @@ class StartCmd(BaseModel):
     )
 
     @validator("time", pre=True, always=True)
+    # @field_validator("time", mode="before")
+    @classmethod
     def parse_datetime(cls, value):
         if value is None:
             return None
@@ -115,6 +117,8 @@ class PauseCmd(BaseModel):
     )
 
     @validator("time", pre=True, always=True)
+    # @field_validator("time", mode="before")
+    @classmethod
     def parse_datetime(cls, value):
         if value is None:
             return None
@@ -147,6 +151,8 @@ class ResumeCmd(BaseModel):
     )
 
     @validator("time", pre=True, always=True)
+    # @field_validator("time", mode="before")
+    @classmethod
     def parse_datetime(cls, value):
         if value is None:
             return None
@@ -183,6 +189,8 @@ class StopCmd(BaseModel):
     )
 
     @validator("time", pre=True, always=True)
+    # @field_validator("time", mode="before")
+    @classmethod
     def parse_datetime(cls, value):
         if value is None:
             return None
@@ -204,7 +212,7 @@ class StatusCmd(BaseModel):
 class ShowCmd(BaseModel):
     _description = "Show log"
     id: Optional[int] = Field(
-        description="Id of log to show (default: active log)",
+        None, description="Id of log to show (default: active log)",
     )
     format: OutputFormat = Field(
         default=OutputFormat.simple,
@@ -219,7 +227,7 @@ class ListCmd(BaseModel):
     order: Optional[str] = Field(
         default=None,
         description="Order of logs",
-        regex="^(asc|desc)$",
+        pattern="^(asc|desc)$",
     )
 
     since: Optional[datetime] = Field(
@@ -256,6 +264,8 @@ class ListCmd(BaseModel):
     )
 
     @validator("since", "until", pre=True, always=True)
+    # @field_validator("since", "until", mode="before")
+    @classmethod
     def parse_datetime(cls, value):
         if value is None:
             return None
@@ -300,6 +310,8 @@ class ReportCmd(BaseModel):
     )
 
     @validator("since", "until", pre=True, always=True)
+    # @field_validator("since", "until", mode="before")
+    @classmethod
     def parse_datetime(cls, value):
         if value is None:
             return None
@@ -379,44 +391,46 @@ class CliArgs(BaseModel):
     )
 
     help: Optional[HelpCmd] = Field(
-        description=HelpCmd._description,
+        None, description=HelpCmd._description,
     )
     tui: Optional[TuiCmd] = Field(
-        description=TuiCmd._description,
+        None, description=TuiCmd._description,
     )
     start: Optional[StartCmd] = Field(
-        description=StartCmd._description,
+        None, description=StartCmd._description,
     )
     pause: Optional[PauseCmd] = Field(
-        description=PauseCmd._description,
+        None, description=PauseCmd._description,
     )
     resume: Optional[ResumeCmd] = Field(
-        description=ResumeCmd._description,
+        None, description=ResumeCmd._description,
     )
     stop: Optional[StopCmd] = Field(
-        description=StopCmd._description,
+        None, description=StopCmd._description,
     )
     status: Optional[StatusCmd] = Field(
-        description=StatusCmd._description,
+        None, description=StatusCmd._description,
     )
     show: Optional[ShowCmd] = Field(
-        description=ShowCmd._description,
+        None, description=ShowCmd._description,
     )
     list: Optional[ListCmd] = Field(
-        description=ListCmd._description,
+        None, description=ListCmd._description,
     )
     report: Optional[ReportCmd] = Field(
-        description=ReportCmd._description,
+        None, description=ReportCmd._description,
     )
     delete: Optional[DeleteCmd] = Field(
-        description=DeleteCmd._description,
+        None, description=DeleteCmd._description,
     )
     edit: Optional[EditCmd] = Field(
-        description=EditCmd._description,
+        None, description=EditCmd._description,
     )
     set: Optional[SetCmd] = Field(
-        description=SetCmd._description,
+        None, description=SetCmd._description,
     )
+
+    # model_config = ConfigDict(validate_default=True)
 
     class Config:
         validate_all = True

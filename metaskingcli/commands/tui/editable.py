@@ -32,10 +32,10 @@ class EditableText(Static, can_focus=True):
     ) -> None:
         self.fallback_text = fallback_text
         self.save_callback = save_callback
-        super().__init__(self._resolve_text(text), **kwargs)
-        self.update_text(text)
+        super().__init__(self._resolve_text(text, True), **kwargs)
+        self.set_text(text)
 
-    def update_text(self, text: str | None) -> None:
+    def set_text(self, text: str | None) -> None:
         if text == self.saved_text:
             return
 
@@ -43,9 +43,9 @@ class EditableText(Static, can_focus=True):
         self.saved_text = text
         self.cursor = len(self.text or "")
 
-    def _resolve_text(self, text: str | None) -> str:
+    def _resolve_text(self, text: str | None, is_init: bool = False) -> str:
         if text is None:
-            if self.has_focus:
+            if not is_init and self.has_focus:
                 return ""
             else:
                 return self.fallback_text

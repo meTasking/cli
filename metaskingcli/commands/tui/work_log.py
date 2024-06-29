@@ -344,14 +344,14 @@ class WorkLog(Widget):
         log_category: EditableText = self.query_one(  # type: ignore
             ".log-category"
         )
-        log_category.update_text(
+        log_category.set_text(
             self._log['category']['name']
             if self._log is not None and self._log['category']
             else None
         )
 
         log_task: EditableText = self.query_one(".log-task")  # type: ignore
-        log_task.update_text(
+        log_task.set_text(
             self._log['task']['name']
             if self._log is not None and self._log['task']
             else None
@@ -365,14 +365,14 @@ class WorkLog(Widget):
         )
 
         log_name: EditableText = self.query_one(".log-name")  # type: ignore
-        log_name.update_text(
+        log_name.set_text(
             self._log['name']
             if self._log is not None
             else None
         )
 
         log_flags: EditableText = self.query_one(".log-flags")  # type: ignore
-        log_flags.update_text(
+        log_flags.set_text(
             ','.join(map(lambda flag: flag['flag'], self._log['flags']))
             if self._log is not None
             else None
@@ -392,7 +392,7 @@ class WorkLog(Widget):
         log_description: EditableText = self.query_one(  # type: ignore
             ".log-description"
         )
-        log_description.update_text(
+        log_description.set_text(
             self._log['description']
             if self._log is not None
             else None
