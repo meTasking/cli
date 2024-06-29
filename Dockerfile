@@ -8,14 +8,14 @@ WORKDIR /usr/src/app
 ENV TZ=Europe/Prague
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV HOST "0.0.0.0"
-ENV PORT 80
-ENV PUBLIC_URL "http://localhost:80"
-ENV TITLE ""
+ENV METASKING_TUI_HOST "0.0.0.0"
+ENV METASKING_TUI_PORT 80
+ENV METASKING_TUI_PUBLIC_URL "http://localhost:80"
+ENV METASKING_TUI_TITLE ""
 ENV METASKING_SERVER "http://localhost:8000"
 
 # set command to run when container starts
-ENTRYPOINT ["python", "serve.py", "$HOST", "$PORT", "$PUBLIC_URL", "$TITLE"]
+ENTRYPOINT ["python", "serve.py"]
 
 # install python dependencies
 COPY ./requirements.txt .

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 from textual_serve.server import Server
 
@@ -11,14 +12,14 @@ def escape_argument(arg):
     return f"'{arg}'"
 
 
-host = sys.argv[1]
-port = int(sys.argv[2])
-public_url = sys.argv[3]
-title = sys.argv[4] if len(sys.argv) > 4 else ""
+host = os.environ.get("METASKING_TUI_HOST", "localhost")
+port = int(os.environ.get("METASKING_TUI_PORT", 8000))
+public_url = os.environ.get("METASKING_TUI_PUBLIC_URL", "http://localhost:8000")
+title = os.environ.get("METASKING_TUI_TITLE", "")
 if title != "":
     title = " - " + title
 
-args = sys.argv[5:]
+args = sys.argv[1:]
 args_txt = " ".join(map(escape_argument, args))
 
 server = Server(
