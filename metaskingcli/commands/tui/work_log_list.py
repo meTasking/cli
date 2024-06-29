@@ -130,7 +130,7 @@ class LogList(ScrollableContainer):
         if reached_end:
             return
 
-        limit = 20
+        limit = 10
 
         if self.logs_only_active:
             logs = []

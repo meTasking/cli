@@ -37,7 +37,7 @@ class WorkLog(Widget):
         background: $boost;
         height: 7;
         margin: 1;
-        min-width: 125;
+        min-width: 64;
         padding: 1;
     }
 
