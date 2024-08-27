@@ -226,6 +226,16 @@ class WorkLog(Widget):
 
         curr_time = datetime.now()
         log_end_str = log['records'][-1]['end']
+        if log_end_str is not None:
+            for record in log['records']:
+                if record['end'] is None:
+                    log_end_str = None
+                    break
+
+                record_end = datetime.fromisoformat(record['end'])
+                log_end_val = datetime.fromisoformat(log_end_str)
+                if record_end > log_end_val:
+                    log_end_str = record['end']
         log_end = curr_time
 
         if log_end_str is not None:
